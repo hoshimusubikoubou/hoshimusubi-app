@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>星結び香房 運営管理</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+:root {
+  --bg:#f7f6f2; --surface:#fff; --border:#ddd; --text:#1a1a18; --muted:#888;
+  --accent:#5b4a3f; --accent-light:#f0ebe5;
+  --ok:#2e7d5b; --ok-bg:#e4f5ed;
+  --warn:#8a6d2b; --warn-bg:#fdf4e0;
+  --danger:#a03a2a; --danger-bg:#fce8e4;
+  --info:#3a6b8a; --info-bg:#e4f0f7;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);padding:0;min-height:100vh;padding-bottom:70px;}
+.header{background:var(--accent);color:#fff;padding:14px 16px 10px;text-align:center;}
+.header h1{font-size:17px;letter-spacing:.1em;font-weight:700;}
+.header .sub{font-size:11px;opacity:.7;margin-top:2px;}
+
+/* タブバー（下部固定） */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid var(--border);z-index:100;}
+.tab-btn{flex:1;padding:6px 0 4px;text-align:center;font-size:9px;font-weight:700;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;transition:color .2s;}
+.tab-btn .icon{font-size:18px;display:block;margin-bottom:1px;}
+.tab-btn.active{color:var(--accent);}
+
+.panel{display:none;padding:12px;max-width:600px;margin:0 auto;}
+.panel.active{display:block;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;}
+.card-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:10px;text-transform:uppercase;}
+
+.field{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;}
+.field label{font-size:11px;color:var(--muted);font-weight:500;}
+.field input,.field select,.field textarea{font-family:inherit;font-size:14px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;background:#fafaf8;color:var(--text);width:100%;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+button.primary{font-family:inherit;font-size:14px;font-weight:700;padding:10px 0;width:100%;border-radius:8px;cursor:pointer;border:none;background:var(--accent);color:#fff;}
+button.primary:hover{opacity:.85;}
+button.primary:disabled{opacity:.4;cursor:default;}
+button.sm{font-family:inherit;font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);}
+button.sm:hover{background:var(--accent-light);}
+button.sm.danger{color:var(--danger);border-color:var(--danger);}
+button.sm.danger:hover{background:var(--danger-bg);}
+button.sm.ok{color:var(--ok);border-color:var(--ok);}
+button.sm.plenty{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
+button.sm.medium{background:var(--info-bg);color:var(--info);border-color:var(--info);}
+button.sm.low{background:var(--warn-bg);color:var(--warn);border-color:var(--warn);}
+button.sm.critical{background:var(--danger-bg);color:var(--danger);border-color:var(--danger);}
+button.sm.ok:hover{background:var(--ok-bg);}
+
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.badge.plenty{background:var(--ok-bg);color:var(--ok);}
+.badge.medium{background:var(--info-bg);color:var(--info);}
+.badge.low{background:var(--warn-bg);color:var(--warn);}
+.badge.critical{background:var(--danger-bg);color:var(--danger);}
+
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0ee;gap:8px;}
+.list-item:last-child{border-bottom:none;}
+.list-item .main{flex:1;min-width:0;}
+.list-item .name{font-size:14px;font-weight:500;}
+.list-item .detail{font-size:11px;color:var(--muted);margin-top:2px;}
+.list-item .actions{display:flex;gap:6px;flex-shrink:0;}
+
+.stock-num{font-size:18px;font-weight:700;color:var(--accent);}
+.stock-unit{font-size:11px;color:var(--muted);}
+
+.empty-msg{text-align:center;color:var(--muted);font-size:13px;padding:20px 0;}
+
+/* 製造フロー */
+.flow-step{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;margin-bottom:6px;font-size:13px;}
+.flow-step.drying{background:var(--warn-bg);color:var(--warn);}
+.flow-step.packing{background:var(--info-bg);color:var(--info);}
+.flow-step.done{background:var(--ok-bg);color:var(--ok);}
+.flow-step .flow-info{flex:1;}
+.flow-step .flow-date{font-size:11px;opacity:.8;}
+
+/* 販売履歴 */
+.sale-item{padding:10px 0;border-bottom:1px solid #f0f0ee;}
+.sale-item:last-child{border-bottom:none;}
+.sale-item.cancelled{opacity:.5;text-decoration:line-through;}
+.sale-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.sale-product{font-weight:500;font-size:14px;}
+.sale-amount{font-weight:700;font-size:14px;color:var(--accent);}
+.sale-detail{font-size:11px;color:var(--muted);margin-top:2px;}
+
+.section-sep{font-size:11px;font-weight:700;color:var(--muted);padding:6px 0;margin-top:6px;}
+
+/* カウンターボタン */
+.counter{display:flex;align-items:center;gap:0;}
+.counter button{width:30px;height:30px;border:1px solid var(--border);background:#fff;font-size:16px;font-weight:700;cursor:pointer;color:var(--text);display:flex;align-items:center;justify-content:center;}
+.counter button:first-child{border-radius:6px 0 0 6px;}
+.counter button:last-child{border-radius:0 6px 6px 0;}
+.counter button:hover{background:var(--accent-light);}
+.counter .cnt-val{min-width:36px;height:30px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:#fafaf8;}
+
+.mat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+.mat-card.alert{border-color:var(--danger);border-width:2px;}
+.mat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.mat-name{font-size:14px;font-weight:700;}
+.mat-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;font-size:13px;}
+.mat-row:last-child{margin-bottom:0;}
+.mat-label{font-size:11px;color:var(--muted);min-width:50px;}
+.order-alert{background:var(--danger-bg);color:var(--danger);font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px;margin-bottom:10px;}
+
+@media(max-width:400px){
+  .grid3{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>星結び香房</h1>
+  <div class="sub">運営管理アプリ</div>
+</div>
+
+<!-- ===== 販売記録タブ ===== -->
+<div class="panel active" id="panel-sales">
+  <div class="card">
+    <div class="card-title">販売を記録</div>
+    <div class="grid2">
+      <div class="field"><label>商品</label>
+        <select id="sl-product"></select>
+      </div>
+      <div class="field"><label>形状</label>
+        <select id="sl-form">
+          <option value="線香">線香</option>
+          <option value="1gコーン">1gコーン</option>
+          <option value="2gコーン">2gコーン</option>
+          <option value="セット">セット</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>チャンネル</label>
+        <select id="sl-channel" onchange="onChannelChange()">
+          <option value="BASE">BASE</option>
+          <option value="古民家ワークショップ">古民家ワークショップ</option>
+          <option value="イベント">イベント</option>
+          <option value="委託販売">委託販売</option>
+          <option value="直販">直販</option>
+        </select>
+      </div>
+      <div class="field"><label>数量</label>
+        <input type="number" id="sl-qty" value="1" min="1">
+      </div>
+    </div>
+    <div id="sl-event-row" style="display:none;">
+      <div class="field"><label>イベントを選択</label>
+        <select id="sl-event"><option value="">-- 選択 --</option></select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>金額（税込・円）</label>
+        <input type="number" id="sl-amount" value="" placeholder="0">
+      </div>
+      <div class="field"><label>メモ（任意）</label>
+        <input type="text" id="sl-memo" placeholder="">
+      </div>
+    </div>
+    <div id="sl-stock-warn" style="display:none;font-size:12px;color:var(--danger);margin-bottom:8px;font-weight:500;"></div>
+    <button class="primary" onclick="addSale()">販売を記録する</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">販売履歴</div>
+    <div id="sl-history"></div>
+  </div>
+</div>
+
+<!-- ===== 在庫・製造タブ ===== -->
+<div class="panel" id="panel-stock">
+  <!-- 完成品在庫（セット数） -->
+  <div class="card">
+    <div class="card-title">完成品在庫（セット数）</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">線香10本=1セット / 1gコーン10個=1セット / 2gコーン5個=1セット</p>
+    <div id="stk-finished"></div>
+  </div>
+
+  <!-- 予備在庫（端数） -->
+  <div class="card">
+    <div class="card-title">予備在庫（セット未満の端数）</div>
+    <div id="stk-spare"></div>
+  </div>
+
+  <!-- 製造開始 -->
+  <div class="card">
+    <div class="card-title">製造を開始する</div>
+    <div class="grid2">
+      <div class="field"><label>商品</label><select id="mk-product"></select></div>
+      <div class="field"><label>形状</label>
+        <select id="mk-form">
+          <option value="線香">線香</option>
+          <option value="1gコーン">1gコーン</option>
+          <option value="2gコーン">2gコーン</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>製造数量（本数・個数）</label>
+      <input type="number" id="mk-qty" value="20" min="1">
+    </div>
+    <button class="primary" onclick="startMake()">製造開始（→乾燥へ）</button>
+  </div>
+
+  <!-- 乾燥中・梱包待ち -->
+  <div class="card">
+    <div class="card-title">乾燥中 / 梱包待ち</div>
+    <div id="mk-queue"></div>
+  </div>
+
+  <!-- 梱包確認ダイアログ（非表示、動的表示） -->
+  <div class="card" id="pack-dialog" style="display:none;border:2px solid var(--accent);">
+    <div class="card-title">梱包確認</div>
+    <div id="pack-info" style="font-size:13px;margin-bottom:10px;"></div>
+    <div class="field">
+      <label id="pack-label">実際の仕上がり数</label>
+      <input type="number" id="pack-actual" value="0" min="0" oninput="updatePackPreview()">
+    </div>
+    <div id="pack-preview" style="font-size:13px;padding:10px;background:var(--accent-light);border-radius:8px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="primary" style="flex:1;" onclick="confirmPack()">確定して在庫に追加</button>
+      <button class="sm" onclick="cancelPack()">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- 製造ログ -->
+  <div class="card">
+    <div class="card-title">製造ログ（原価計算用）</div>
+    <div id="mk-log"></div>
+  </div>
+</div>
+
+<!-- ===== イベント管理タブ ===== -->
+<div class="panel" id="panel-events">
+  <div class="card">
+    <div class="card-title">イベントを登録</div>
+    <div class="grid2">
+      <div class="field"><label>イベント名</label><input type="text" id="ev-name" placeholder="例：〇〇マルシェ"></div>
+      <div class="field"><label>日付</label><input type="date" id="ev-date"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>出店料（円）</label><input type="number" id="ev-booth" value="0" min="0"></div>
+      <div class="field"><label>支払い状況</label>
+        <select id="ev-payment">
+          <option value="prepaid">前払い済み</option>
+          <option value="unpaid">未払い</option>
+          <option value="onsite">現地払い</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>交通費（円）</label><input type="number" id="ev-transport" value="0" min="0"></div>
+      <div class="field"><label>その他経費（円）</label><input type="number" id="ev-other-cost" value="0" min="0"></div>
+    </div>
+    <div class="field"><label>メモ（任意）</label><input type="text" id="ev-cost-memo" placeholder="例：駐車場代込み"></div>
+    <button class="primary" onclick="addEvent()">イベントを登録</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">イベント一覧</div>
+    <div id="ev-list"></div>
+  </div>
+</div>
+
+<!-- ===== レポートタブ ===== -->
+<div class="panel" id="panel-report">
+  <div class="card">
+    <div class="card-title">月選択</div>
+    <div class="grid2">
+      <div class="field"><label>年</label><input type="number" id="rp-year" min="2020" max="2040"></div>
+      <div class="field"><label>月</label><input type="number" id="rp-month" min="1" max="12"></div>
+    </div>
+    <button class="primary" onclick="renderReport()">表示</button>
+  </div>
+  <div id="rp-content"></div>
+</div>
+
+<!-- ===== 香原料タブ ===== -->
+<div class="panel" id="panel-materials">
+  <div id="mat-alert"></div>
+  <div class="card">
+    <div class="card-title">香原料一覧</div>
+    <div id="mat-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">香原料を追加</div>
+    <div class="field"><label>原料名</label><input type="text" id="mat-name" placeholder="例：白檀"></div>
+    <div class="grid3">
+      <div class="field"><label>未開封（袋数）</label><input type="number" id="mat-unopened" value="0" min="0"></div>
+      <div class="field"><label>使用中</label>
+        <select id="mat-level">
+          <option value="plenty">多</option>
+          <option value="medium">中</option>
+          <option value="low">少</option>
+          <option value="critical">切れそう</option>
+        </select>
+      </div>
+      <div class="field"><label>瓶（WS用）</label><input type="number" id="mat-bottles" value="0" min="0"></div>
+    </div>
+    <div class="field"><label>メモ（任意）</label><input type="text" id="mat-memo" placeholder=""></div>
+    <button class="primary" onclick="addMaterial()">追加する</button>
+  </div>
+</div>
+
+<!-- ===== 設定タブ ===== -->
+<div class="panel" id="panel-settings">
+  <div class="card">
+    <div class="card-title">商品マスター</div>
+    <div id="prd-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">商品を追加</div>
+    <div class="field"><label>商品名</label><input type="text" id="prd-name" placeholder="例：沈香"></div>
+    <button class="primary" onclick="addProduct()">追加する</button>
+  </div>
+  <div class="card" style="margin-top:8px;">
+    <div class="card-title">データ管理</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="sm" onclick="exportAllData()">データをエクスポート</button>
+      <button class="sm" onclick="document.getElementById('import-fi').click()">データをインポート</button>
+      <input type="file" id="import-fi" accept=".json" style="display:none" onchange="importAllData(event)">
+      <button class="sm danger" onclick="resetAllData()">全データをリセット</button>
+    </div>
+  </div>
+</div>
+
+<!-- 下部タブバー -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('sales')" data-tab="sales">
+    <span class="icon">🛒</span>販売
+  </button>
+  <button class="tab-btn" onclick="switchTab('stock')" data-tab="stock">
+    <span class="icon">📦</span>在庫製造
+  </button>
+  <button class="tab-btn" onclick="switchTab('events')" data-tab="events">
+    <span class="icon">🎪</span>イベント
+  </button>
+  <button class="tab-btn" onclick="switchTab('report')" data-tab="report">
+    <span class="icon">📊</span>レポート
+  </button>
+  <button class="tab-btn" onclick="switchTab('materials')" data-tab="materials">
+    <span class="icon">🌿</span>香原料
+  </button>
+  <button class="tab-btn" onclick="switchTab('settings')" data-tab="settings">
+    <span class="icon">⚙</span>設定
+  </button>
+</div>
+
+<script>
+// ===== 定数 =====
+var DEFAULT_PRODUCTS = ['深澄','温火','木霞','木霊','新月の雫','金木犀','ゆず'];
+var FORMS = ['線香','1gコーン','2gコーン'];
+var LEVEL_LABELS = {plenty:'多',medium:'中',low:'少',critical:'切れそう'};
+var LEVEL_ORDER = ['critical','low','medium','plenty'];
+
+// ===== データ（localStorage永続化） =====
+function loadData(key, def) {
+  try { var d = JSON.parse(localStorage.getItem('hoshimusubi_'+key)); return d !== null ? d : def; }
+  catch(e) { return def; }
+}
+function saveData(key, val) { localStorage.setItem('hoshimusubi_'+key, JSON.stringify(val)); }
+
+// セット換算定数：何本/個で1セット
+var SET_SIZE = {'線香':10, '1gコーン':10, '2gコーン':5};
+
+// 商品リスト（localStorage永続化、初回は初期値）
+var PRODUCTS = loadData('products', DEFAULT_PRODUCTS);
+// 完成品在庫（セット数）: { "深澄_線香": 2, ... }
+var stock = loadData('stock', {});
+// 予備在庫（端数・本数/個数）: { "深澄_線香": 3, ... }
+var spareStock = loadData('spareStock', {});
+// 販売履歴
+var sales = loadData('sales', DEFAULT_SALES);
+// 製造キュー: [{id,product,form,qty,date,status:'drying'|'packing'}, ...]
+var makeQueue = loadData('makeQueue', []);
+// 製造ログ（完了済み）: [{id,product,form,madeQty,actualQty,sets,spare,date,completedDate}, ...]
+var makeLog = loadData('makeLog', []);
+// イベント
+var DEFAULT_EVENTS = [{
+  id:'ev_init1', name:'らぶとんマルシェ', date:'2026-04-12',
+  boothFee:5500, payment:'prepaid', transport:0, otherCost:0, costMemo:'',
+  manualSales:{incense:8200, blending:0, diagnosis:4000, holder:0, other:0, memo:''}
+}];
+var events = loadData('events', DEFAULT_EVENTS);
+var DEFAULT_SALES = [];
+// 香原料
+var materials = loadData('materials', []);
+// 梱包中の対象ID
+var packingTargetId = null;
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function stockKey(product, form) { return product + '_' + form; }
+function getStock(product, form) { return stock[stockKey(product, form)] || 0; }
+function setStock(product, form, val) { stock[stockKey(product, form)] = Math.max(0, val); saveData('stock', stock); }
+function getSpare(product, form) { return spareStock[stockKey(product, form)] || 0; }
+function setSpare(product, form, val) { spareStock[stockKey(product, form)] = Math.max(0, val); saveData('spareStock', spareStock); }
+
+// ===== タブ切替 =====
+function switchTab(id) {
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('panel-' + id).classList.add('active');
+  var btn = document.querySelector('.tab-btn[data-tab="'+id+'"]');
+  if (btn) btn.classList.add('active');
+  if (id === 'stock') renderStock();
+  if (id === 'materials') renderMaterials();
+  if (id === 'sales') { renderSales(); onChannelChange(); }
+  if (id === 'events') renderEvents();
+  if (id === 'report') renderReport();
+  if (id === 'settings') renderProducts();
+}
+
+// ===== 商品セレクト初期化 =====
+function initProductSelects() {
+  ['sl-product','mk-product'].forEach(function(sid) {
+    var sel = document.getElementById(sid);
+    sel.innerHTML = '';
+    PRODUCTS.forEach(function(p) {
+      var o = document.createElement('option'); o.value = p; o.textContent = p;
+      sel.appendChild(o);
+    });
+  });
+}
+
+// ===== 販売記録 =====
+function addSale() {
+  var product = document.getElementById('sl-product').value;
+  var form = document.getElementById('sl-form').value;
+  var channel = document.getElementById('sl-channel').value;
+  var qty = parseInt(document.getElementById('sl-qty').value) || 1;
+  var amount = parseInt(document.getElementById('sl-amount').value) || 0;
+  var memo = document.getElementById('sl-memo').value.trim();
+
+  // 在庫チェック（セット・その他以外）
+  if (form !== 'セット' && form !== 'その他') {
+    var cur = getStock(product, form);
+    if (cur < qty) {
+      if (!confirm(product + '（' + form + '）の在庫が ' + cur + ' 個しかありません。記録しますか？')) return;
+    }
+    setStock(product, form, cur - qty);
+  }
+
+  var eventId = '';
+  if (channel === 'イベント') {
+    eventId = document.getElementById('sl-event').value || '';
+    if (!eventId) { alert('イベントを選択してください'); return; }
+  }
+  var sale = {
+    id: genId(), date: new Date().toISOString(), product: product, form: form,
+    channel: channel, qty: qty, amount: amount, memo: memo, cancelled: false, eventId: eventId
+  };
+  sales.unshift(sale);
+  saveData('sales', sales);
+
+  document.getElementById('sl-amount').value = '';
+  document.getElementById('sl-memo').value = '';
+  document.getElementById('sl-qty').value = '1';
+  renderSales();
+}
+
+function cancelSale(id) {
+  if (!confirm('この販売記録を取り消しますか？在庫が戻ります。')) return;
+  for (var i = 0; i < sales.length; i++) {
+    if (sales[i].id === id && !sales[i].cancelled) {
+      sales[i].cancelled = true;
+      var s = sales[i];
+      if (s.form !== 'セット' && s.form !== 'その他') {
+        setStock(s.product, s.form, getStock(s.product, s.form) + s.qty);
+      }
+      break;
+    }
+  }
+  saveData('sales', sales);
+  renderSales();
+}
+
+function deleteSale(id) {
+  if (!confirm('この履歴を完全に削除しますか？')) return;
+  sales = sales.filter(function(s) { return s.id !== id; });
+  saveData('sales', sales);
+  renderSales();
+}
+
+function renderSales() {
+  var el = document.getElementById('sl-history');
+  if (!sales.length) { el.innerHTML = '<div class="empty-msg">販売履歴はまだありません</div>'; return; }
+
+  var html = '';
+  sales.forEach(function(s) {
+    var d = new Date(s.date);
+    var dateStr = (d.getMonth()+1) + '/' + d.getDate() + ' ' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+    var cls = s.cancelled ? ' cancelled' : '';
+    html += '<div class="sale-item' + cls + '">';
+    html += '<div class="sale-top"><span class="sale-product">' + s.product + '（' + s.form + '）</span>';
+    html += '<span class="sale-amount">¥' + (s.amount || 0).toLocaleString() + '</span></div>';
+    var evName = '';
+    if (s.eventId) { var ev = events.find(function(e){return e.id===s.eventId;}); if (ev) evName = ev.name; }
+    html += '<div class="sale-detail">' + dateStr + ' / ' + s.channel + ' / ' + s.qty + '個';
+    if (evName) html += ' / <span style="color:var(--info);font-weight:500;">' + evName + '</span>';
+    if (s.memo) html += ' / ' + s.memo;
+    if (s.cancelled) html += ' <span style="color:var(--danger);font-weight:700;">取消済</span>';
+    html += '</div>';
+    if (!s.cancelled) {
+      html += '<div style="margin-top:4px;"><button class="sm danger" onclick="cancelSale(\'' + s.id + '\')">取消</button> ';
+      html += '<button class="sm" onclick="deleteSale(\'' + s.id + '\')">削除</button></div>';
+    } else {
+      html += '<div style="margin-top:4px;"><button class="sm" onclick="deleteSale(\'' + s.id + '\')">削除</button></div>';
+    }
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// ===== チャンネル切替（イベント選択表示） =====
+function onChannelChange() {
+  var ch = document.getElementById('sl-channel').value;
+  var row = document.getElementById('sl-event-row');
+  if (ch === 'イベント') {
+    row.style.display = '';
+    updateEventSelect();
+  } else {
+    row.style.display = 'none';
+  }
+}
+
+function updateEventSelect() {
+  var sel = document.getElementById('sl-event');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">-- 選択 --</option>';
+  events.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(ev) {
+    var d = ev.date.replace(/-/g,'/');
+    var o = document.createElement('option');
+    o.value = ev.id;
+    o.textContent = ev.name + '（' + d + '）';
+    sel.appendChild(o);
+  });
+  sel.value = cur || '';
+}
+
+// ===== イベント管理 =====
+var PAYMENT_LABELS = {prepaid:'前払い済み', unpaid:'未払い', onsite:'現地払い'};
+var PAYMENT_STYLES = {
+  prepaid:'background:var(--ok-bg);color:var(--ok);',
+  unpaid:'background:var(--danger-bg);color:var(--danger);',
+  onsite:'background:var(--warn-bg);color:var(--warn);'
+};
+
+function addEvent() {
+  var name = document.getElementById('ev-name').value.trim();
+  var date = document.getElementById('ev-date').value;
+  var boothFee = parseInt(document.getElementById('ev-booth').value) || 0;
+  var payment = document.getElementById('ev-payment').value;
+  var transport = parseInt(document.getElementById('ev-transport').value) || 0;
+  var otherCost = parseInt(document.getElementById('ev-other-cost').value) || 0;
+  var costMemo = document.getElementById('ev-cost-memo').value.trim();
+  if (!name) { alert('イベント名を入力してください'); return; }
+  if (!date) { alert('日付を入力してください'); return; }
+  var ev = {
+    id: genId(), name: name, date: date,
+    boothFee: boothFee, payment: payment, transport: transport, otherCost: otherCost, costMemo: costMemo
+  };
+  events.push(ev);
+  saveData('events', events);
+  document.getElementById('ev-name').value = '';
+  document.getElementById('ev-date').value = '';
+  document.getElementById('ev-booth').value = '0';
+  document.getElementById('ev-transport').value = '0';
+  document.getElementById('ev-other-cost').value = '0';
+  document.getElementById('ev-cost-memo').value = '';
+  renderEvents();
+  updateEventSelect();
+}
+
+function deleteEvent(id) {
+  var ev = events.find(function(e){return e.id===id;});
+  if (!ev) return;
+  if (!confirm(ev.name + ' を削除しますか？\n（紐付いた販売記録のイベント紐付けも解除されます）')) return;
+  events = events.filter(function(e){return e.id!==id;});
+  saveData('events', events);
+  sales.forEach(function(s){ if(s.eventId===id) s.eventId=''; });
+  saveData('sales', sales);
+  renderEvents();
+  updateEventSelect();
+}
+
+function editEvent(id) {
+  var ev = events.find(function(e){return e.id===id;});
+  if (!ev) return;
+  var newName = prompt('イベント名', ev.name);
+  if (newName !== null && newName.trim()) ev.name = newName.trim();
+  var newDate = prompt('日付（YYYY-MM-DD）', ev.date);
+  if (newDate !== null && newDate.trim()) ev.date = newDate.trim();
+  var payInput = prompt('支払い状況（前払い済み / 未払い / 現地払い）', PAYMENT_LABELS[ev.payment] || '未払い');
+  if (payInput !== null) {
+    var payMap = {'前払い済み':'prepaid','未払い':'unpaid','現地払い':'onsite'};
+    if (payMap[payInput]) ev.payment = payMap[payInput];
+  }
+  var fees = prompt('出店料 / 交通費 / その他経費（カンマ区切り）',
+    ev.boothFee+','+ev.transport+','+ev.otherCost);
+  if (fees !== null) {
+    var parts = fees.split(',');
+    ev.boothFee = parseInt(parts[0]) || 0;
+    ev.transport = parseInt(parts[1]) || 0;
+    ev.otherCost = parseInt(parts[2]) || 0;
+  }
+  var memo = prompt('メモ', ev.costMemo || '');
+  if (memo !== null) ev.costMemo = memo;
+  saveData('events', events);
+  renderEvents();
+  updateEventSelect();
+}
+
+function getEventSales(eventId) {
+  return sales.filter(function(s){ return s.eventId === eventId && !s.cancelled; });
+}
+
+var MANUAL_FIELDS = [
+  {key:'incense', label:'お香'},
+  {key:'blending', label:'調香'},
+  {key:'diagnosis', label:'診断'},
+  {key:'holder', label:'お香立て'},
+  {key:'other', label:'その他'}
+];
+
+function getManualTotal(ev) {
+  var ms = ev.manualSales;
+  if (!ms) return 0;
+  var t = 0;
+  MANUAL_FIELDS.forEach(function(f){ t += (ms[f.key]||0); });
+  return t;
+}
+
+function toggleManualPanel(id) {
+  var panel = document.getElementById('manual-panel-'+id);
+  if (panel.style.display === 'none') {
+    panel.style.display = '';
+    // 既存データをフォームに反映
+    var ev = events.find(function(e){return e.id===id;});
+    var ms = (ev && ev.manualSales) || {};
+    MANUAL_FIELDS.forEach(function(f){
+      var inp = document.getElementById('ms-'+f.key+'-'+id);
+      if (inp) inp.value = ms[f.key] || 0;
+    });
+    var memoInp = document.getElementById('ms-memo-'+id);
+    if (memoInp) memoInp.value = ms.memo || '';
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function saveManualSales(id) {
+  var ev = events.find(function(e){return e.id===id;});
+  if (!ev) return;
+  var ms = {};
+  MANUAL_FIELDS.forEach(function(f){
+    ms[f.key] = parseInt(document.getElementById('ms-'+f.key+'-'+id).value) || 0;
+  });
+  ms.memo = document.getElementById('ms-memo-'+id).value.trim();
+  ev.manualSales = ms;
+  saveData('events', events);
+  renderEvents();
+}
+
+function renderEvents() {
+  var el = document.getElementById('ev-list');
+  if (!events.length) { el.innerHTML = '<div class="empty-msg">イベントが登録されていません</div>'; return; }
+
+  var sorted = events.slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+  var html = '';
+  sorted.forEach(function(ev) {
+    var evSales = getEventSales(ev.id);
+    var linkedTotal = 0;
+    evSales.forEach(function(s){ linkedTotal += (s.amount || 0); });
+    var manualTotal = getManualTotal(ev);
+    var totalSales = linkedTotal + manualTotal;
+    var totalCost = (ev.boothFee||0) + (ev.transport||0) + (ev.otherCost||0);
+    var profit = totalSales - totalCost;
+    var profitColor = profit >= 0 ? 'var(--ok)' : 'var(--danger)';
+    var d = ev.date.replace(/-/g,'/');
+    var pay = ev.payment || 'unpaid';
+    var ms = ev.manualSales || {};
+
+    html += '<div class="mat-card">';
+    html += '<div class="mat-header">';
+    html += '<span class="mat-name">' + ev.name + '</span>';
+    html += '<div class="actions">';
+    html += '<button class="sm" onclick="toggleManualPanel(\'' + ev.id + '\')">売上入力</button>';
+    html += '<button class="sm" onclick="editEvent(\'' + ev.id + '\')">編集</button>';
+    html += '<button class="sm danger" onclick="deleteEvent(\'' + ev.id + '\')">削除</button>';
+    html += '</div></div>';
+
+    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">';
+    html += d;
+    html += ' <span class="badge" style="' + (PAYMENT_STYLES[pay]||'') + '">' + (PAYMENT_LABELS[pay]||pay) + '</span>';
+    html += '</div>';
+
+    // 手動売上内訳
+    if (manualTotal > 0) {
+      html += '<div style="font-size:12px;margin-bottom:2px;">';
+      MANUAL_FIELDS.forEach(function(f){
+        if (ms[f.key] > 0) {
+          html += '<div style="display:flex;justify-content:space-between;padding:2px 0;">';
+          html += '<span>' + f.label + '</span><span>¥' + ms[f.key].toLocaleString() + '</span></div>';
+        }
+      });
+      if (ms.memo) html += '<div style="font-size:11px;color:var(--muted);padding:1px 0;">' + ms.memo + '</div>';
+      html += '</div>';
+    }
+
+    // 販売記録紐付け分
+    if (evSales.length) {
+      html += '<div style="font-size:12px;margin-bottom:2px;' + (manualTotal>0?'border-top:1px solid #eee;padding-top:4px;margin-top:4px;':'') + '">';
+      if (manualTotal > 0) html += '<div style="font-size:10px;color:var(--muted);margin-bottom:2px;">販売記録からの紐付け</div>';
+      evSales.forEach(function(s){
+        html += '<div style="display:flex;justify-content:space-between;padding:2px 0;">';
+        html += '<span>' + s.product + (s.memo ? '（'+s.memo+'）' : '') + '</span>';
+        html += '<span>¥' + s.amount.toLocaleString() + '</span></div>';
+      });
+      html += '</div>';
+    }
+
+    if (!manualTotal && !evSales.length) {
+      html += '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">売上記録なし</div>';
+    }
+
+    // サマリー
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;">';
+    html += '<div style="text-align:center;padding:6px;background:var(--accent-light);border-radius:6px;">';
+    html += '<div style="font-size:10px;color:var(--muted);">売上</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:var(--accent);">¥' + totalSales.toLocaleString() + '</div></div>';
+    html += '<div style="text-align:center;padding:6px;background:var(--warn-bg);border-radius:6px;">';
+    html += '<div style="font-size:10px;color:var(--muted);">経費</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:var(--warn);">¥' + totalCost.toLocaleString() + '</div></div>';
+    html += '<div style="text-align:center;padding:6px;background:' + (profit>=0?'var(--ok-bg)':'var(--danger-bg)') + ';border-radius:6px;">';
+    html += '<div style="font-size:10px;color:var(--muted);">純利益</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:' + profitColor + ';">¥' + profit.toLocaleString() + '</div></div>';
+    html += '</div>';
+
+    // 経費内訳
+    var costParts = [];
+    if (ev.boothFee) costParts.push('出店料¥'+ev.boothFee.toLocaleString());
+    if (ev.transport) costParts.push('交通費¥'+ev.transport.toLocaleString());
+    if (ev.otherCost) costParts.push('その他¥'+ev.otherCost.toLocaleString());
+    if (costParts.length || ev.costMemo) {
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:4px;">';
+      if (costParts.length) html += '経費内訳: ' + costParts.join(' / ');
+      if (ev.costMemo) html += (costParts.length ? ' / ' : '') + ev.costMemo;
+      html += '</div>';
+    }
+
+    // 手動売上入力パネル（非表示）
+    html += '<div id="manual-panel-' + ev.id + '" style="display:none;margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;">売上を手動入力</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+    MANUAL_FIELDS.forEach(function(f){
+      html += '<div class="field" style="margin-bottom:6px;"><label>' + f.label + '（円）</label>';
+      html += '<input type="number" id="ms-' + f.key + '-' + ev.id + '" value="' + (ms[f.key]||0) + '" min="0"></div>';
+    });
+    html += '</div>';
+    html += '<div class="field" style="margin-bottom:8px;"><label>メモ</label>';
+    html += '<input type="text" id="ms-memo-' + ev.id + '" value="' + (ms.memo||'') + '"></div>';
+    html += '<button class="primary" onclick="saveManualSales(\'' + ev.id + '\')">保存</button>';
+    html += '</div>';
+
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// ===== レポート =====
+function renderReport() {
+  var y = parseInt(document.getElementById('rp-year').value);
+  var m = parseInt(document.getElementById('rp-month').value);
+  if (!y || !m) return;
+
+  // 該当月の売上を抽出
+  var monthSales = sales.filter(function(s) {
+    if (s.cancelled) return false;
+    var d = new Date(s.date);
+    return d.getFullYear() === y && (d.getMonth()+1) === m;
+  });
+
+  var linkedSalesTotal = 0;
+  monthSales.forEach(function(s){ linkedSalesTotal += (s.amount||0); });
+
+  // 該当月のイベント経費 + 手動売上
+  var monthEvents = events.filter(function(ev) {
+    var parts = ev.date.split('-');
+    return parseInt(parts[0]) === y && parseInt(parts[1]) === m;
+  });
+  var totalCost = 0;
+  var manualSalesTotal = 0;
+  monthEvents.forEach(function(ev){
+    totalCost += (ev.boothFee||0) + (ev.transport||0) + (ev.otherCost||0);
+    manualSalesTotal += getManualTotal(ev);
+  });
+  var totalSales = linkedSalesTotal + manualSalesTotal;
+  var profit = totalSales - totalCost;
+
+  var html = '';
+
+  // 今月サマリー
+  html += '<div class="card">';
+  html += '<div class="card-title">' + y + '年' + m + '月 サマリー</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">';
+  html += '<div style="text-align:center;padding:10px 6px;background:var(--accent-light);border-radius:8px;">';
+  html += '<div style="font-size:10px;color:var(--muted);">売上合計</div>';
+  html += '<div style="font-size:18px;font-weight:700;color:var(--accent);">¥' + totalSales.toLocaleString() + '</div></div>';
+  html += '<div style="text-align:center;padding:10px 6px;background:var(--warn-bg);border-radius:8px;">';
+  html += '<div style="font-size:10px;color:var(--muted);">経費合計</div>';
+  html += '<div style="font-size:18px;font-weight:700;color:var(--warn);">¥' + totalCost.toLocaleString() + '</div></div>';
+  html += '<div style="text-align:center;padding:10px 6px;background:' + (profit>=0?'var(--ok-bg)':'var(--danger-bg)') + ';border-radius:8px;">';
+  html += '<div style="font-size:10px;color:var(--muted);">純利益</div>';
+  html += '<div style="font-size:18px;font-weight:700;color:' + (profit>=0?'var(--ok)':'var(--danger)') + ';">¥' + profit.toLocaleString() + '</div></div>';
+  html += '</div></div>';
+
+  // チャンネル別売上（手動売上はイベントに加算）
+  var channels = {};
+  monthSales.forEach(function(s) {
+    if (!channels[s.channel]) channels[s.channel] = 0;
+    channels[s.channel] += (s.amount||0);
+  });
+  if (manualSalesTotal > 0) {
+    if (!channels['イベント']) channels['イベント'] = 0;
+    channels['イベント'] += manualSalesTotal;
+  }
+  html += '<div class="card">';
+  html += '<div class="card-title">チャンネル別売上</div>';
+  var chKeys = Object.keys(channels).sort(function(a,b){return channels[b]-channels[a];});
+  if (chKeys.length) {
+    chKeys.forEach(function(ch) {
+      var pct = totalSales > 0 ? Math.round(channels[ch]/totalSales*100) : 0;
+      html += '<div class="list-item" style="padding:6px 0;">';
+      html += '<div class="main"><div class="name" style="font-size:13px;">' + ch + '</div>';
+      html += '<div style="margin-top:4px;height:6px;background:#eee;border-radius:3px;overflow:hidden;">';
+      html += '<div style="height:100%;width:' + pct + '%;background:var(--accent);border-radius:3px;"></div></div></div>';
+      html += '<div style="text-align:right;"><span class="stock-num" style="font-size:15px;">¥' + channels[ch].toLocaleString() + '</span>';
+      html += '<div style="font-size:10px;color:var(--muted);">' + pct + '%</div></div>';
+      html += '</div>';
+    });
+  } else {
+    html += '<div class="empty-msg">売上データなし</div>';
+  }
+  html += '</div>';
+
+  // イベント別収支
+  html += '<div class="card">';
+  html += '<div class="card-title">イベント別収支</div>';
+  if (monthEvents.length) {
+    monthEvents.forEach(function(ev) {
+      var evSales = getEventSales(ev.id);
+      var evLinked = 0;
+      evSales.forEach(function(s){ evLinked += (s.amount||0); });
+      var evTotal = evLinked + getManualTotal(ev);
+      var evCost = (ev.boothFee||0) + (ev.transport||0) + (ev.otherCost||0);
+      var evProfit = evTotal - evCost;
+      var pay = ev.payment || 'unpaid';
+      html += '<div class="list-item" style="padding:8px 0;">';
+      html += '<div class="main">';
+      html += '<div class="name" style="font-size:13px;">' + ev.name + ' <span class="badge" style="font-size:10px;' + (PAYMENT_STYLES[pay]||'') + '">' + (PAYMENT_LABELS[pay]||'') + '</span></div>';
+      html += '<div class="detail">売上¥' + evTotal.toLocaleString() + ' − 経費¥' + evCost.toLocaleString() + '</div>';
+      html += '</div>';
+      html += '<div style="text-align:right;"><span style="font-size:15px;font-weight:700;color:' + (evProfit>=0?'var(--ok)':'var(--danger)') + ';">¥' + evProfit.toLocaleString() + '</span></div>';
+      html += '</div>';
+    });
+  } else {
+    html += '<div class="empty-msg">イベントなし</div>';
+  }
+  html += '</div>';
+
+  document.getElementById('rp-content').innerHTML = html;
+}
+
+// ===== 在庫・製造 =====
+function formUnit(form) { return form === '線香' ? '本' : '個'; }
+
+function renderStock() {
+  // 完成品在庫（セット数）
+  var fEl = document.getElementById('stk-finished');
+  var fHtml = '';
+  PRODUCTS.forEach(function(p) {
+    var counts = [];
+    var total = 0;
+    FORMS.forEach(function(f) {
+      var n = getStock(p, f);
+      total += n;
+      counts.push(f + ': ' + n + 'セット');
+    });
+    fHtml += '<div class="list-item">';
+    fHtml += '<div class="main"><div class="name">' + p + '</div>';
+    fHtml += '<div class="detail">' + counts.join(' / ') + '</div></div>';
+    fHtml += '<div><span class="stock-num">' + total + '</span> <span class="stock-unit">セット</span></div>';
+    fHtml += '<div style="margin-left:6px;"><button class="sm" onclick="adjustStock(\'' + p + '\')">調整</button></div>';
+    fHtml += '</div>';
+  });
+  fEl.innerHTML = fHtml;
+
+  // 予備在庫（端数）
+  var sEl = document.getElementById('stk-spare');
+  var sHtml = '';
+  var hasSpare = false;
+  PRODUCTS.forEach(function(p) {
+    var parts = [];
+    FORMS.forEach(function(f) {
+      var n = getSpare(p, f);
+      if (n > 0) { parts.push(f + ' ' + n + formUnit(f)); hasSpare = true; }
+    });
+    if (parts.length) {
+      sHtml += '<div class="list-item">';
+      sHtml += '<div class="main"><div class="name">' + p + '</div>';
+      sHtml += '<div class="detail">' + parts.join(' / ') + '</div></div>';
+      sHtml += '<div><button class="sm" onclick="adjustSpare(\'' + p + '\')">調整</button></div>';
+      sHtml += '</div>';
+    }
+  });
+  if (!hasSpare) sHtml = '<div class="empty-msg">端数の予備在庫はありません</div>';
+  sEl.innerHTML = sHtml;
+
+  renderMakeQueue();
+  renderMakeLog();
+}
+
+function adjustStock(product) {
+  FORMS.forEach(function(f) {
+    var cur = getStock(product, f);
+    var val = prompt(product + ' / ' + f + ' のセット数（現在: ' + cur + 'セット）', cur);
+    if (val !== null && val !== '') setStock(product, f, parseInt(val) || 0);
+  });
+  renderStock();
+}
+
+function adjustSpare(product) {
+  FORMS.forEach(function(f) {
+    var cur = getSpare(product, f);
+    var val = prompt(product + ' / ' + f + ' の予備在庫（現在: ' + cur + formUnit(f) + '）', cur);
+    if (val !== null && val !== '') setSpare(product, f, parseInt(val) || 0);
+  });
+  renderStock();
+}
+
+// 製造開始
+function startMake() {
+  var product = document.getElementById('mk-product').value;
+  var form = document.getElementById('mk-form').value;
+  var qty = parseInt(document.getElementById('mk-qty').value) || 20;
+  var item = {
+    id: genId(), product: product, form: form, qty: qty,
+    date: new Date().toISOString(), status: 'drying'
+  };
+  makeQueue.push(item);
+  saveData('makeQueue', makeQueue);
+  renderMakeQueue();
+}
+
+// 乾燥完了 → 梱包待ちへ
+function completeDrying(id) {
+  for (var i = 0; i < makeQueue.length; i++) {
+    if (makeQueue[i].id === id) { makeQueue[i].status = 'packing'; break; }
+  }
+  saveData('makeQueue', makeQueue);
+  renderMakeQueue();
+}
+
+// 梱包確認ダイアログを開く
+function openPackDialog(id) {
+  var item = makeQueue.find(function(m) { return m.id === id; });
+  if (!item) return;
+  packingTargetId = id;
+  var unit = formUnit(item.form);
+  var setSize = SET_SIZE[item.form] || 10;
+  document.getElementById('pack-info').innerHTML =
+    '<strong>' + item.product + '（' + item.form + '）</strong><br>' +
+    '製造数: ' + item.qty + unit + '　／　1セット = ' + setSize + unit;
+  document.getElementById('pack-label').textContent = '実際の仕上がり数（' + unit + '）';
+  document.getElementById('pack-actual').value = item.qty;
+  document.getElementById('pack-actual').max = item.qty * 2;
+  updatePackPreview();
+  document.getElementById('pack-dialog').style.display = '';
+  document.getElementById('pack-dialog').scrollIntoView({behavior:'smooth'});
+}
+
+function updatePackPreview() {
+  var item = makeQueue.find(function(m) { return m.id === packingTargetId; });
+  if (!item) return;
+  var actual = parseInt(document.getElementById('pack-actual').value) || 0;
+  var setSize = SET_SIZE[item.form] || 10;
+  var unit = formUnit(item.form);
+  // 予備在庫の端数も合算してセット計算
+  var existingSpare = getSpare(item.product, item.form);
+  var totalPieces = actual + existingSpare;
+  var sets = Math.floor(totalPieces / setSize);
+  var remainder = totalPieces - sets * setSize;
+  var broken = item.qty - actual;
+
+  var html = '';
+  html += '仕上がり: <strong>' + actual + unit + '</strong>';
+  if (broken > 0) html += '（折れ等: ' + broken + unit + '）';
+  html += '<br>';
+  if (existingSpare > 0) html += '既存の予備在庫: ' + existingSpare + unit + '<br>';
+  if (existingSpare > 0) html += '合計: ' + totalPieces + unit + '<br>';
+  html += '→ <strong style="color:var(--accent);font-size:16px;">' + sets + 'セット</strong>';
+  if (remainder > 0) html += ' ＋ 端数 ' + remainder + unit + '（予備在庫へ）';
+  document.getElementById('pack-preview').innerHTML = html;
+}
+
+function confirmPack() {
+  var item = makeQueue.find(function(m) { return m.id === packingTargetId; });
+  if (!item) return;
+  var actual = parseInt(document.getElementById('pack-actual').value) || 0;
+  var setSize = SET_SIZE[item.form] || 10;
+  var existingSpare = getSpare(item.product, item.form);
+  var totalPieces = actual + existingSpare;
+  var sets = Math.floor(totalPieces / setSize);
+  var remainder = totalPieces - sets * setSize;
+
+  // 完成品在庫にセット数を加算
+  if (sets > 0) setStock(item.product, item.form, getStock(item.product, item.form) + sets);
+  // 予備在庫を端数で更新
+  setSpare(item.product, item.form, remainder);
+
+  // 製造ログに記録
+  var logEntry = {
+    id: genId(), product: item.product, form: item.form,
+    madeQty: item.qty, actualQty: actual,
+    sets: sets, spare: remainder,
+    date: item.date, completedDate: new Date().toISOString()
+  };
+  makeLog.push(logEntry);
+  saveData('makeLog', makeLog);
+
+  // キューから削除
+  makeQueue = makeQueue.filter(function(m) { return m.id !== packingTargetId; });
+  saveData('makeQueue', makeQueue);
+  packingTargetId = null;
+  document.getElementById('pack-dialog').style.display = 'none';
+  renderStock();
+}
+
+function cancelPack() {
+  packingTargetId = null;
+  document.getElementById('pack-dialog').style.display = 'none';
+}
+
+function cancelMake(id) {
+  if (!confirm('この製造記録を削除しますか？')) return;
+  makeQueue = makeQueue.filter(function(m) { return m.id !== id; });
+  saveData('makeQueue', makeQueue);
+  renderMakeQueue();
+}
+
+function renderMakeQueue() {
+  var el = document.getElementById('mk-queue');
+  if (!makeQueue.length) { el.innerHTML = '<div class="empty-msg">乾燥中・梱包待ちの製造はありません</div>'; return; }
+
+  var html = '';
+  makeQueue.forEach(function(m) {
+    var d = new Date(m.date);
+    var dateStr = (d.getMonth()+1) + '/' + d.getDate();
+    var elapsed = Math.floor((Date.now() - d.getTime()) / (1000*60*60));
+    var elapsedStr = elapsed < 24 ? elapsed + '時間前' : Math.floor(elapsed/24) + '日前';
+    var unit = formUnit(m.form);
+
+    if (m.status === 'drying') {
+      html += '<div class="flow-step drying">';
+      html += '<div class="flow-info"><strong>' + m.product + '（' + m.form + '）' + m.qty + unit + '</strong>';
+      html += '<div class="flow-date">製造: ' + dateStr + '（' + elapsedStr + '）— 乾燥中</div></div>';
+      html += '<button class="sm ok" onclick="completeDrying(\'' + m.id + '\')">乾燥完了</button> ';
+      html += '<button class="sm danger" onclick="cancelMake(\'' + m.id + '\')">取消</button>';
+      html += '</div>';
+    } else {
+      html += '<div class="flow-step done">';
+      html += '<div class="flow-info"><strong>' + m.product + '（' + m.form + '）' + m.qty + unit + '</strong>';
+      html += '<div class="flow-date">製造: ' + dateStr + ' — 乾燥完了・梱包待ち</div></div>';
+      html += '<button class="sm ok" onclick="openPackDialog(\'' + m.id + '\')">梱包確認</button> ';
+      html += '<button class="sm danger" onclick="cancelMake(\'' + m.id + '\')">取消</button>';
+      html += '</div>';
+    }
+  });
+  el.innerHTML = html;
+}
+
+function renderMakeLog() {
+  var el = document.getElementById('mk-log');
+  if (!makeLog.length) { el.innerHTML = '<div class="empty-msg">製造ログはまだありません</div>'; return; }
+  var html = '';
+  var recent = makeLog.slice().reverse().slice(0, 20);
+  recent.forEach(function(l) {
+    var d1 = new Date(l.date);
+    var d2 = new Date(l.completedDate);
+    var unit = formUnit(l.form);
+    html += '<div class="list-item" style="padding:6px 0;">';
+    html += '<div class="main">';
+    html += '<div class="name" style="font-size:13px;">' + l.product + '（' + l.form + '）</div>';
+    html += '<div class="detail">製造 ' + l.madeQty + unit + ' → 仕上がり ' + l.actualQty + unit;
+    if (l.madeQty !== l.actualQty) html += '（ロス ' + (l.madeQty - l.actualQty) + unit + '）';
+    html += ' → ' + l.sets + 'セット';
+    if (l.spare > 0) html += ' + 端数' + l.spare + unit;
+    html += '</div>';
+    html += '<div class="detail">' + (d1.getMonth()+1)+'/'+d1.getDate() + '製造 → ' + (d2.getMonth()+1)+'/'+d2.getDate() + '完了</div>';
+    html += '</div></div>';
+  });
+  if (makeLog.length > 20) html += '<div class="empty-msg">他 ' + (makeLog.length - 20) + '件</div>';
+  el.innerHTML = html;
+}
+
+// ===== 香原料 =====
+function needsOrder(m) {
+  return (m.unopened || 0) === 0 && (m.level === 'low' || m.level === 'critical');
+}
+
+function addMaterial() {
+  var name = document.getElementById('mat-name').value.trim();
+  var level = document.getElementById('mat-level').value;
+  var unopened = parseInt(document.getElementById('mat-unopened').value) || 0;
+  var bottles = parseInt(document.getElementById('mat-bottles').value) || 0;
+  var memo = document.getElementById('mat-memo').value.trim();
+  if (!name) { alert('原料名を入力してください'); return; }
+  for (var i = 0; i < materials.length; i++) {
+    if (materials[i].name === name) { alert(name + ' は既に登録されています'); return; }
+  }
+  materials.push({ id: genId(), name: name, level: level, unopened: unopened, bottles: bottles, memo: memo });
+  saveData('materials', materials);
+  document.getElementById('mat-name').value = '';
+  document.getElementById('mat-unopened').value = '0';
+  document.getElementById('mat-bottles').value = '0';
+  document.getElementById('mat-memo').value = '';
+  renderMaterials();
+}
+
+function matAdjust(id, field, delta) {
+  var item = materials.find(function(m) { return m.id === id; });
+  if (!item) return;
+  item[field] = Math.max(0, (item[field] || 0) + delta);
+  saveData('materials', materials);
+  renderMaterials();
+}
+
+function matSetLevel(id, level) {
+  var item = materials.find(function(m) { return m.id === id; });
+  if (!item) return;
+  item.level = level;
+  saveData('materials', materials);
+  renderMaterials();
+}
+
+function editMaterial(id) {
+  var item = materials.find(function(m) { return m.id === id; });
+  if (!item) return;
+  var newName = prompt('原料名を編集', item.name);
+  if (newName !== null && newName.trim() !== '') item.name = newName.trim();
+  var newMemo = prompt('メモ（空欄OK）', item.memo || '');
+  if (newMemo !== null) item.memo = newMemo;
+  saveData('materials', materials);
+  renderMaterials();
+}
+
+function deleteMaterial(id) {
+  var item = materials.find(function(m) { return m.id === id; });
+  if (!item) return;
+  if (!confirm(item.name + ' を削除しますか？')) return;
+  materials = materials.filter(function(m) { return m.id !== id; });
+  saveData('materials', materials);
+  renderMaterials();
+}
+
+function renderMaterials() {
+  var el = document.getElementById('mat-list');
+  if (!materials.length) { el.innerHTML = '<div class="empty-msg">香原料が登録されていません</div>'; return; }
+
+  // 要発注を先頭、次に切れそう→少→中→多
+  var sorted = materials.slice().sort(function(a, b) {
+    var ao = needsOrder(a) ? -1 : 0;
+    var bo = needsOrder(b) ? -1 : 0;
+    if (ao !== bo) return ao - bo;
+    return LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level);
+  });
+
+  // 要発注アラート
+  var alertEl = document.getElementById('mat-alert');
+  var alertItems = materials.filter(needsOrder);
+  if (alertItems.length) {
+    var names = alertItems.map(function(m) { return m.name; }).join('、');
+    alertEl.innerHTML = '<div class="order-alert">要発注: ' + names + '（未開封0 ＋ 使用中が少/切れそう）</div>';
+  } else {
+    alertEl.innerHTML = '';
+  }
+
+  var html = '';
+  sorted.forEach(function(m) {
+    var isAlert = needsOrder(m);
+    html += '<div class="mat-card' + (isAlert ? ' alert' : '') + '">';
+
+    // ヘッダー（名前 + 編集・削除）
+    html += '<div class="mat-header">';
+    html += '<span class="mat-name">' + m.name;
+    if (isAlert) html += ' <span style="color:var(--danger);font-size:11px;font-weight:700;">要発注</span>';
+    html += '</span>';
+    html += '<div class="actions">';
+    html += '<button class="sm" onclick="editMaterial(\'' + m.id + '\')">編集</button>';
+    html += '<button class="sm danger" onclick="deleteMaterial(\'' + m.id + '\')">削除</button>';
+    html += '</div></div>';
+
+    // 未開封（±ボタン）
+    html += '<div class="mat-row">';
+    html += '<span class="mat-label">未開封</span>';
+    html += '<div class="counter">';
+    html += '<button onclick="matAdjust(\'' + m.id + '\',\'unopened\',-1)">−</button>';
+    html += '<span class="cnt-val">' + (m.unopened || 0) + '</span>';
+    html += '<button onclick="matAdjust(\'' + m.id + '\',\'unopened\',1)">+</button>';
+    html += '</div>';
+    html += '<span style="font-size:11px;color:var(--muted);">袋</span>';
+    html += '</div>';
+
+    // 使用中（4段階セレクト）
+    html += '<div class="mat-row">';
+    html += '<span class="mat-label">使用中</span>';
+    var levels = [
+      {v:'plenty',l:'多'},{v:'medium',l:'中'},{v:'low',l:'少'},{v:'critical',l:'切れそう'}
+    ];
+    levels.forEach(function(lv) {
+      var sel = m.level === lv.v;
+      var cls = sel ? lv.v : '';
+      html += '<button class="sm' + (sel ? ' ' + lv.v : '') + '" style="' +
+        (sel ? 'font-weight:700;' : 'opacity:.5;') + '" onclick="matSetLevel(\'' + m.id + '\',\'' + lv.v + '\')">' + lv.l + '</button>';
+    });
+    html += '</div>';
+
+    // 瓶（±ボタン）
+    html += '<div class="mat-row">';
+    html += '<span class="mat-label">瓶(WS)</span>';
+    html += '<div class="counter">';
+    html += '<button onclick="matAdjust(\'' + m.id + '\',\'bottles\',-1)">−</button>';
+    html += '<span class="cnt-val">' + (m.bottles || 0) + '</span>';
+    html += '<button onclick="matAdjust(\'' + m.id + '\',\'bottles\',1)">+</button>';
+    html += '</div>';
+    html += '<span style="font-size:11px;color:var(--muted);">瓶</span>';
+    html += '</div>';
+
+    // メモ
+    if (m.memo) {
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:4px;">' + m.memo + '</div>';
+    }
+
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// ===== 商品マスター管理 =====
+function addProduct() {
+  var name = document.getElementById('prd-name').value.trim();
+  if (!name) { alert('商品名を入力してください'); return; }
+  if (PRODUCTS.indexOf(name) >= 0) { alert(name + ' は既に登録されています'); return; }
+  PRODUCTS.push(name);
+  saveData('products', PRODUCTS);
+  document.getElementById('prd-name').value = '';
+  initProductSelects();
+  renderProducts();
+}
+
+function editProduct(idx) {
+  var oldName = PRODUCTS[idx];
+  var newName = prompt('商品名を編集', oldName);
+  if (!newName || newName.trim() === '' || newName === oldName) return;
+  newName = newName.trim();
+  if (PRODUCTS.indexOf(newName) >= 0) { alert(newName + ' は既に存在します'); return; }
+  // 在庫キーのリネーム
+  FORMS.forEach(function(f) {
+    var oldKey = stockKey(oldName, f);
+    var newKey = stockKey(newName, f);
+    if (stock[oldKey] !== undefined) { stock[newKey] = stock[oldKey]; delete stock[oldKey]; }
+    if (spareStock[oldKey] !== undefined) { spareStock[newKey] = spareStock[oldKey]; delete spareStock[oldKey]; }
+  });
+  saveData('stock', stock);
+  saveData('spareStock', spareStock);
+  // 販売履歴・製造キュー・製造ログの商品名も更新
+  sales.forEach(function(s) { if (s.product === oldName) s.product = newName; });
+  saveData('sales', sales);
+  makeQueue.forEach(function(m) { if (m.product === oldName) m.product = newName; });
+  saveData('makeQueue', makeQueue);
+  makeLog.forEach(function(l) { if (l.product === oldName) l.product = newName; });
+  saveData('makeLog', makeLog);
+  PRODUCTS[idx] = newName;
+  saveData('products', PRODUCTS);
+  initProductSelects();
+  renderProducts();
+}
+
+function deleteProduct(idx) {
+  var name = PRODUCTS[idx];
+  if (!confirm(name + ' を商品リストから削除しますか？\n（在庫データも削除されます）')) return;
+  FORMS.forEach(function(f) { delete stock[stockKey(name, f)]; delete spareStock[stockKey(name, f)]; });
+  saveData('stock', stock);
+  saveData('spareStock', spareStock);
+  PRODUCTS.splice(idx, 1);
+  saveData('products', PRODUCTS);
+  initProductSelects();
+  renderProducts();
+}
+
+function moveProduct(idx, dir) {
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= PRODUCTS.length) return;
+  var tmp = PRODUCTS[idx];
+  PRODUCTS[idx] = PRODUCTS[newIdx];
+  PRODUCTS[newIdx] = tmp;
+  saveData('products', PRODUCTS);
+  initProductSelects();
+  renderProducts();
+}
+
+function renderProducts() {
+  var el = document.getElementById('prd-list');
+  if (!PRODUCTS.length) { el.innerHTML = '<div class="empty-msg">商品が登録されていません</div>'; return; }
+  var html = '';
+  PRODUCTS.forEach(function(p, i) {
+    var total = 0;
+    FORMS.forEach(function(f) { total += getStock(p, f); });
+    html += '<div class="list-item">';
+    html += '<div class="main"><div class="name">' + p + '</div>';
+    html += '<div class="detail">在庫合計: ' + total + '個</div></div>';
+    html += '<div class="actions">';
+    if (i > 0) html += '<button class="sm" onclick="moveProduct('+i+',-1)" title="上へ">↑</button>';
+    if (i < PRODUCTS.length-1) html += '<button class="sm" onclick="moveProduct('+i+',1)" title="下へ">↓</button>';
+    html += '<button class="sm" onclick="editProduct('+i+')">編集</button>';
+    html += '<button class="sm danger" onclick="deleteProduct('+i+')">削除</button>';
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+// ===== データ管理 =====
+function exportAllData() {
+  var data = {
+    products: PRODUCTS, stock: stock, spareStock: spareStock, sales: sales,
+    events: events, makeQueue: makeQueue, makeLog: makeLog, materials: materials,
+    exportDate: new Date().toISOString()
+  };
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '星結び香房_バックアップ_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+function importAllData(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      if (!confirm('現在のデータを上書きしてインポートしますか？')) return;
+      if (data.products) { PRODUCTS = data.products; saveData('products', PRODUCTS); }
+      if (data.stock) { stock = data.stock; saveData('stock', stock); }
+      if (data.spareStock) { spareStock = data.spareStock; saveData('spareStock', spareStock); }
+      if (data.sales) { sales = data.sales; saveData('sales', sales); }
+      if (data.events) { events = data.events; saveData('events', events); }
+      if (data.makeQueue) { makeQueue = data.makeQueue; saveData('makeQueue', makeQueue); }
+      if (data.makeLog) { makeLog = data.makeLog; saveData('makeLog', makeLog); }
+      if (data.materials) { materials = data.materials; saveData('materials', materials); }
+      initProductSelects();
+      renderProducts();
+      alert('インポートしました');
+    } catch(err) { alert('ファイルを読み込めませんでした: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetAllData() {
+  if (!confirm('全てのデータをリセットしますか？この操作は元に戻せません。')) return;
+  if (!confirm('本当にリセットしますか？')) return;
+  PRODUCTS = DEFAULT_PRODUCTS.slice();
+  stock = {}; spareStock = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = [];
+  saveData('products', PRODUCTS);
+  saveData('stock', stock);
+  saveData('spareStock', spareStock);
+  saveData('sales', sales);
+  saveData('events', events);
+  saveData('makeQueue', makeQueue);
+  saveData('makeLog', makeLog);
+  saveData('materials', materials);
+  initProductSelects();
+  renderProducts(); renderSales(); renderStock(); renderMaterials(); renderEvents();
+  alert('リセットしました');
+}
+
+// ===== 初期化 =====
+initProductSelects();
+onChannelChange();
+renderSales();
+renderStock();
+renderMaterials();
+// レポート月を今月に設定
+var _now = new Date();
+document.getElementById('rp-year').value = _now.getFullYear();
+document.getElementById('rp-month').value = _now.getMonth() + 1;
+</script>
+</body>
+</html>
