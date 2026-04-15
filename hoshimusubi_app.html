@@ -139,20 +139,25 @@ button.sm.ok:hover{background:var(--ok-bg);}
 
 <!-- ===== レジタブ ===== -->
 <div class="panel active" id="panel-register">
+  <div id="rg-done-banner" style="display:none;padding:12px;border-radius:8px;background:#2e7d5b;color:#fff;font-weight:700;font-size:14px;text-align:center;margin-bottom:10px;"></div>
+  <div id="rg-err-banner" style="display:none;padding:12px;border-radius:8px;background:#a03a2a;color:#fff;font-weight:700;font-size:12px;text-align:center;margin-bottom:10px;"></div>
+  <div class="card">
+    <div class="card-title">販売先を選択</div>
+    <div class="field" style="margin-bottom:0;">
+      <select id="rg-context" onchange="renderRegister()">
+        <option value="_default">通常価格</option>
+      </select>
+    </div>
+  </div>
   <div class="card">
     <div class="card-title">商品を選択</div>
-    <div class="grid2" style="margin-bottom:8px;">
-      <div class="field" style="margin-bottom:0;"><label>形状</label>
-        <select id="rg-form" onchange="renderRegister()">
-          <option value="線香">線香</option>
-          <option value="1gコーン">1gコーン</option>
-          <option value="2gコーン">2gコーン</option>
-          <option value="セット">セット</option>
-        </select>
-      </div>
-      <div class="field" style="margin-bottom:0;"><label>イベント紐付け</label>
-        <select id="rg-event"><option value="">なし</option></select>
-      </div>
+    <div class="field" style="margin-bottom:8px;">
+      <select id="rg-form" onchange="renderRegister()">
+        <option value="線香">線香</option>
+        <option value="1gコーン">1gコーン</option>
+        <option value="2gコーン">2gコーン</option>
+        <option value="セット">セット</option>
+      </select>
     </div>
     <div class="reg-products" id="rg-products"></div>
   </div>
@@ -184,7 +189,11 @@ button.sm.ok:hover{background:var(--ok-bg);}
       <div class="ch-label">おつり</div>
       <div class="ch-amount" id="rg-change">¥0</div>
     </div>
-    <button class="primary" style="margin-top:10px;" onclick="checkout()" id="rg-checkout-btn" disabled>会計完了</button>
+    <div style="margin-top:10px;" id="rg-checkout-wrap">
+      <input type="button" value="会計完了" id="rg-checkout-btn" disabled
+        style="font-family:inherit;font-size:14px;font-weight:700;padding:10px 0;width:100%;border-radius:8px;cursor:pointer;border:none;background:#5b4a3f;color:#fff;"
+        onclick="doCheckout()">
+    </div>
   </div>
 </div>
 
@@ -389,9 +398,11 @@ button.sm.ok:hover{background:var(--ok-bg);}
     <button class="primary" onclick="addProduct()">追加する</button>
   </div>
   <div class="card">
-    <div class="card-title">レジ価格設定（マルシェ価格）</div>
+    <div class="card-title">通常販売価格</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">レジのデフォルト価格です。イベント別の価格はイベント管理タブで設定できます。</p>
     <div id="prd-prices"></div>
-    <button class="primary" style="margin-top:8px;" onclick="savePrices()">価格を保存</button>
+    <button class="primary" style="margin-top:8px;" onclick="saveBasePrices()">価格を保存</button>
+    <p id="price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
   </div>
   <div class="card" style="margin-top:8px;">
     <div class="card-title">データ管理</div>
@@ -516,16 +527,10 @@ var events = loadData('events', DEFAULT_EVENTS);
 var materials = loadData('materials', []);
 // 梱包中の対象ID
 var packingTargetId = null;
-// 商品価格（マルシェ価格）: { "深澄_線香": 500, ... }
-var DEFAULT_PRICES = {};
-DEFAULT_PRODUCTS.forEach(function(p){
-  DEFAULT_PRICES[p+'_線香'] = 500;
-  DEFAULT_PRICES[p+'_1gコーン'] = 300;
-  DEFAULT_PRICES[p+'_2gコーン'] = 500;
-  DEFAULT_PRICES[p+'_セット'] = 1200;
-});
-var prices = loadData('prices', DEFAULT_PRICES);
-// レジカート: [{product,form,qty,price}, ...]
+// 通常価格（ユーザーが設定タブで設定）: { "深澄_線香": 1000, ... }
+var basePrices = loadData('basePrices', {});
+// イベント別価格はevent.pricesに格納: { "深澄_線香": 1200, ... }
+// レジカート
 var cart = [];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -534,6 +539,7 @@ function getStock(product, form) { return stock[stockKey(product, form)] || 0; }
 function setStock(product, form, val) { stock[stockKey(product, form)] = Math.max(0, val); saveData('stock', stock); }
 function getSpare(product, form) { return spareStock[stockKey(product, form)] || 0; }
 function setSpare(product, form, val) { spareStock[stockKey(product, form)] = Math.max(0, val); saveData('spareStock', spareStock); }
+function updateBasePrice(key, value) { basePrices[key] = parseInt(value) || 0; saveData('basePrices', basePrices); }
 
 // ===== タブ切替 =====
 function switchTab(id) {
@@ -542,7 +548,7 @@ function switchTab(id) {
   document.getElementById('panel-' + id).classList.add('active');
   var btn = document.querySelector('.tab-btn[data-tab="'+id+'"]');
   if (btn) btn.classList.add('active');
-  if (id === 'register') { renderRegister(); updateRegEventSelect(); }
+  if (id === 'register') { updateRegContextSelect(); renderRegister(); }
   if (id === 'stock') renderStock();
   if (id === 'materials') renderMaterials();
   if (id === 'sales') { renderSales(); onChannelChange(); }
@@ -564,35 +570,49 @@ function initProductSelects() {
 }
 
 // ===== レジ =====
-function getPrice(product, form) {
-  return prices[product+'_'+form] || 0;
+function getPrice(product, form, eventId) {
+  var key = product + '_' + form;
+  if (eventId) {
+    var ev = events.find(function(e){return e.id===eventId;});
+    if (ev && ev.prices && ev.prices[key] !== undefined && ev.prices[key] > 0) return ev.prices[key];
+  }
+  return basePrices[key] || 0;
 }
 
-function updateRegEventSelect() {
-  var sel = document.getElementById('rg-event');
+function getRegContext() { return document.getElementById('rg-context').value; }
+
+function updateRegContextSelect() {
+  var sel = document.getElementById('rg-context');
   var cur = sel.value;
-  sel.innerHTML = '<option value="">なし</option>';
+  sel.innerHTML = '<option value="_default">通常価格</option>';
   events.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(ev) {
     var o = document.createElement('option');
     o.value = ev.id;
     o.textContent = ev.name + '（' + ev.date.replace(/-/g,'/') + '）';
     sel.appendChild(o);
   });
-  sel.value = cur || '';
+  sel.value = cur || '_default';
 }
 
 function renderRegister() {
   var form = document.getElementById('rg-form').value;
+  var ctx = getRegContext();
+  var eventId = ctx === '_default' ? '' : ctx;
   var el = document.getElementById('rg-products');
   var html = '';
   PRODUCTS.forEach(function(p) {
     var stk = (form === 'セット') ? 99 : getStock(p, form);
-    var price = getPrice(p, form);
-    var disabled = stk <= 0;
-    html += '<div class="reg-btn' + (disabled?' disabled':'') + '" onclick="' + (disabled?'':'addToCart(\''+p+'\')') + '">';
+    var price = getPrice(p, form, eventId);
+    var noStock = stk <= 0;
+    var disabled = noStock;
+    html += '<div class="reg-btn' + (disabled?' disabled':'') + '" ' + (disabled?'':'onclick="addToCart(\''+p+'\')"') + '>';
     html += '<div class="rb-name">' + p + '</div>';
-    html += '<div class="rb-price">¥' + price.toLocaleString() + '</div>';
-    if (form !== 'セット') html += '<div class="rb-stock">在庫 ' + stk + '</div>';
+    if (price > 0) {
+      html += '<div class="rb-price">¥' + price.toLocaleString() + '</div>';
+    } else {
+      html += '<div class="rb-price" style="color:#a03a2a;font-size:11px;">価格未設定</div>';
+    }
+    if (form !== 'セット') html += '<div class="rb-stock">在庫 ' + stk + (noStock?' (なし)':'') + '</div>';
     html += '</div>';
   });
   el.innerHTML = html;
@@ -601,29 +621,28 @@ function renderRegister() {
 
 function addToCart(product) {
   var form = document.getElementById('rg-form').value;
-  var price = getPrice(product, form);
-  // 在庫チェック（セット以外）
+  var ctx = getRegContext();
+  var eventId = ctx === '_default' ? '' : ctx;
+  var price = getPrice(product, form, eventId);
   if (form !== 'セット') {
     var inCart = 0;
-    cart.forEach(function(c){ if(c.product===product && c.form===form) inCart=c.qty; });
-    if (inCart >= getStock(product, form)) {
-      alert(product + '（' + form + '）の在庫が足りません');
-      return;
+    for (var i = 0; i < cart.length; i++) {
+      if (cart[i].product === product && cart[i].form === form) inCart = cart[i].qty;
     }
+    if (inCart >= getStock(product, form)) return;
   }
-  // カートに追加（同じ商品+形状は数量を増やす）
   var found = false;
-  cart.forEach(function(c){
-    if(c.product===product && c.form===form){ c.qty++; found=true; }
-  });
-  if(!found) cart.push({product:product, form:form, qty:1, price:price});
+  for (var i = 0; i < cart.length; i++) {
+    if (cart[i].product === product && cart[i].form === form) { cart[i].qty++; cart[i].price = price; found = true; break; }
+  }
+  if (!found) cart.push({product:product, form:form, qty:1, price:price});
   renderCart();
   renderRegister();
 }
 
 function cartQty(idx, delta) {
   cart[idx].qty += delta;
-  if(cart[idx].qty <= 0) cart.splice(idx, 1);
+  if (cart[idx].qty <= 0) cart.splice(idx, 1);
   renderCart();
   renderRegister();
 }
@@ -635,21 +654,30 @@ function removeCartItem(idx) {
 }
 
 function getCartTotal() {
-  var total = 0;
-  cart.forEach(function(c){ total += c.price * c.qty; });
-  return total;
+  var ctx = getRegContext();
+  var eventId = ctx === '_default' ? '' : ctx;
+  var t = 0;
+  for (var i = 0; i < cart.length; i++) {
+    t += getPrice(cart[i].product, cart[i].form, eventId) * cart[i].qty;
+  }
+  return t;
 }
 
 function renderCart() {
   var el = document.getElementById('rg-cart');
-  if(!cart.length) {
+  var btn = document.getElementById('rg-checkout-btn');
+  if (!cart.length) {
     el.innerHTML = '<div class="empty-msg">商品をタップして追加</div>';
     document.getElementById('rg-total').textContent = '¥0';
-    document.getElementById('rg-checkout-btn').disabled = true;
+    btn.disabled = true;
     return;
   }
+  var ctx = getRegContext();
+  var eventId = ctx === '_default' ? '' : ctx;
   var html = '';
-  cart.forEach(function(c, i) {
+  for (var i = 0; i < cart.length; i++) {
+    var c = cart[i];
+    c.price = getPrice(c.product, c.form, eventId);
     html += '<div class="cart-item">';
     html += '<span class="ci-name">' + c.product + '（' + c.form + '）</span>';
     html += '<div class="counter">';
@@ -660,10 +688,10 @@ function renderCart() {
     html += '<span class="ci-price">¥' + (c.price * c.qty).toLocaleString() + '</span>';
     html += '<button class="sm danger" style="padding:3px 8px;" onclick="removeCartItem('+i+')">×</button>';
     html += '</div>';
-  });
+  }
   el.innerHTML = html;
   document.getElementById('rg-total').textContent = '¥' + getCartTotal().toLocaleString();
-  document.getElementById('rg-checkout-btn').disabled = false;
+  btn.disabled = false;
   calcChange();
 }
 
@@ -671,7 +699,7 @@ function calcChange() {
   var total = getCartTotal();
   var received = parseInt(document.getElementById('rg-received').value) || 0;
   var box = document.getElementById('rg-change-box');
-  if(received > 0 && received >= total) {
+  if (received > 0 && received >= total) {
     box.style.display = '';
     document.getElementById('rg-change').textContent = '¥' + (received - total).toLocaleString();
   } else {
@@ -679,37 +707,56 @@ function calcChange() {
   }
 }
 
-function checkout() {
-  if(!cart.length) return;
+function doCheckout() {
+  var doneBanner = document.getElementById('rg-done-banner');
+  var errBanner = document.getElementById('rg-err-banner');
+  doneBanner.style.display = 'none';
+  errBanner.style.display = 'none';
+
+  if (!cart.length) { return; }
+
   var total = getCartTotal();
   var payMethod = document.getElementById('rg-pay').value;
-  var eventId = document.getElementById('rg-event').value || '';
+  var ctx = getRegContext();
+  var eventId = (ctx !== '_default') ? ctx : '';
   var channel = eventId ? 'イベント' : '直販';
   var now = new Date().toISOString();
 
-  // 商品ごとに1件ずつ販売記録に追加＋在庫を引く
-  for(var i = 0; i < cart.length; i++) {
-    var c = cart[i];
-    // 在庫から引く（セット以外）
-    if(c.form !== 'セット') {
+  // カートの中身を処理
+  var i, c;
+  for (i = 0; i < cart.length; i++) {
+    c = cart[i];
+    // 在庫を引く
+    if (c.form !== 'セット') {
       setStock(c.product, c.form, getStock(c.product, c.form) - c.qty);
     }
-    // 販売記録に追加（1件ずつ）
+    // 販売記録を追加
     sales.unshift({
-      id: genId(), date: now, product: c.product, form: c.form,
-      channel: channel, qty: c.qty, amount: c.price * c.qty,
-      memo: payMethod, cancelled: false, eventId: eventId
+      id: 'r' + Date.now() + '' + i + '' + Math.floor(Math.random()*9999),
+      date: now,
+      product: c.product,
+      form: c.form,
+      channel: channel,
+      qty: c.qty,
+      amount: c.price * c.qty,
+      memo: payMethod,
+      cancelled: false,
+      eventId: eventId
     });
   }
   saveData('sales', sales);
 
-  // カートをリセット
+  // カートクリア＋UI更新
   cart = [];
   document.getElementById('rg-received').value = '';
   document.getElementById('rg-change-box').style.display = 'none';
   renderCart();
   renderRegister();
-  alert('会計完了 ¥' + total.toLocaleString() + '（' + payMethod + '）');
+
+  // 完了表示
+  doneBanner.textContent = '会計完了 ¥' + total.toLocaleString() + '（' + payMethod + '）';
+  doneBanner.style.display = 'block';
+  setTimeout(function(){ doneBanner.style.display = 'none'; }, 3000);
 }
 
 // ===== 販売記録 =====
@@ -951,6 +998,28 @@ function saveManualSales(id) {
   renderEvents();
 }
 
+function toggleEventPrices(id) {
+  var panel = document.getElementById('evprice-panel-'+id);
+  panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+function saveEventPrices(id) {
+  var ev = events.find(function(e){return e.id===id;});
+  if (!ev) return;
+  var ep = {};
+  var allForms = ['線香','1gコーン','2gコーン','セット'];
+  for(var i=0;i<PRODUCTS.length;i++){
+    for(var j=0;j<allForms.length;j++){
+      var key = PRODUCTS[i]+'_'+allForms[j];
+      var inp = document.getElementById('ep-'+key+'-'+id);
+      if(inp && inp.value !== '') ep[key] = parseInt(inp.value) || 0;
+    }
+  }
+  ev.prices = ep;
+  saveData('events', events);
+  renderEvents();
+}
+
 function renderEvents() {
   var el = document.getElementById('ev-list');
   if (!events.length) { el.innerHTML = '<div class="empty-msg">イベントが登録されていません</div>'; return; }
@@ -975,6 +1044,7 @@ function renderEvents() {
     html += '<span class="mat-name">' + ev.name + '</span>';
     html += '<div class="actions">';
     html += '<button class="sm" onclick="toggleManualPanel(\'' + ev.id + '\')">売上入力</button>';
+    html += '<button class="sm" onclick="toggleEventPrices(\'' + ev.id + '\')">価格設定</button>';
     html += '<button class="sm" onclick="editEvent(\'' + ev.id + '\')">編集</button>';
     html += '<button class="sm danger" onclick="deleteEvent(\'' + ev.id + '\')">削除</button>';
     html += '</div></div>';
@@ -1050,6 +1120,29 @@ function renderEvents() {
     html += '<div class="field" style="margin-bottom:8px;"><label>メモ</label>';
     html += '<input type="text" id="ms-memo-' + ev.id + '" value="' + (ms.memo||'') + '"></div>';
     html += '<button class="primary" onclick="saveManualSales(\'' + ev.id + '\')">保存</button>';
+    html += '</div>';
+
+    // イベント別価格設定パネル（非表示）
+    var ep = ev.prices || {};
+    var allForms = ['線香','1gコーン','2gコーン','セット'];
+    html += '<div id="evprice-panel-' + ev.id + '" style="display:none;margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;">このイベント用の販売価格</div>';
+    html += '<p style="font-size:10px;color:var(--muted);margin-bottom:8px;">空欄・0の場合は通常価格が使われます</p>';
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    html += '<tr><th style="text-align:left;padding:3px 4px;font-size:10px;color:var(--muted);">商品</th>';
+    for(var fi=0;fi<allForms.length;fi++) html += '<th style="text-align:center;padding:3px 2px;font-size:10px;color:var(--muted);">'+allForms[fi]+'</th>';
+    html += '</tr>';
+    for(var pi=0;pi<PRODUCTS.length;pi++){
+      var pp = PRODUCTS[pi];
+      html += '<tr><td style="padding:2px 4px;font-size:12px;font-weight:500;">'+pp+'</td>';
+      for(var fi2=0;fi2<allForms.length;fi2++){
+        var kk = pp+'_'+allForms[fi2];
+        html += '<td style="padding:2px;text-align:center;"><input type="number" id="ep-'+kk+'-'+ev.id+'" value="'+(ep[kk]||'')+'" min="0" placeholder="'+(basePrices[kk]||0)+'" style="width:55px;font-size:11px;padding:3px;border:1px solid var(--border);border-radius:4px;text-align:right;"></td>';
+      }
+      html += '</tr>';
+    }
+    html += '</table></div>';
+    html += '<button class="primary" style="margin-top:8px;" onclick="saveEventPrices(\'' + ev.id + '\')">この価格を保存</button>';
     html += '</div>';
 
     html += '</div>';
@@ -1181,6 +1274,16 @@ function renderStock() {
     fHtml += '<div class="detail">' + counts.join(' / ') + '</div></div>';
     fHtml += '<div><span class="stock-num">' + total + '</span> <span class="stock-unit">セット</span></div>';
     fHtml += '<div style="margin-left:6px;"><button class="sm" onclick="adjustStock(\'' + p + '\')">調整</button></div>';
+    fHtml += '</div>';
+    // 価格入力行
+    var allForms = FORMS.concat(['セット']);
+    fHtml += '<div class="list-item" style="padding:4px 10px;font-size:11px;color:var(--muted);border-top:none;margin-top:-4px;">';
+    fHtml += '価格: ';
+    allForms.forEach(function(f, i) {
+      var key = p + '_' + f;
+      if (i > 0) fHtml += ' ';
+      fHtml += f + ' <input type="number" id="stk-price-' + key + '" value="' + (basePrices[key] || '') + '" min="0" placeholder="0" style="width:50px;font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;" oninput="updateBasePrice(\'' + key + '\', this.value)">';
+    });
     fHtml += '</div>';
   });
   fEl.innerHTML = fHtml;
@@ -1560,11 +1663,11 @@ function editProduct(idx) {
     var newKey = newName+'_'+f;
     if (stock[oldKey] !== undefined) { stock[newKey] = stock[oldKey]; delete stock[oldKey]; }
     if (spareStock[oldKey] !== undefined) { spareStock[newKey] = spareStock[oldKey]; delete spareStock[oldKey]; }
-    if (prices[oldKey] !== undefined) { prices[newKey] = prices[oldKey]; delete prices[oldKey]; }
+    if (basePrices[oldKey] !== undefined) { basePrices[newKey] = basePrices[oldKey]; delete basePrices[oldKey]; }
   });
   saveData('stock', stock);
   saveData('spareStock', spareStock);
-  saveData('prices', prices);
+  saveData('basePrices', basePrices);
   // 販売履歴・製造キュー・製造ログの商品名も更新
   sales.forEach(function(s) { if (s.product === oldName) s.product = newName; });
   saveData('sales', sales);
@@ -1635,7 +1738,7 @@ function renderPrices() {
     allForms.forEach(function(f){
       var key = p+'_'+f;
       html += '<td style="padding:2px 2px;border-bottom:1px solid #eee;text-align:center;">';
-      html += '<input type="number" id="price-'+key+'" value="'+(prices[key]||0)+'" min="0" style="width:60px;font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
+      html += '<input type="number" id="price-'+key+'" value="'+(basePrices[key]||'')+'" min="0" placeholder="0" style="width:60px;font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
       html += '</td>';
     });
     html += '</tr>';
@@ -1644,24 +1747,26 @@ function renderPrices() {
   el.innerHTML = html;
 }
 
-function savePrices() {
+function saveBasePrices() {
   var allForms = FORMS.concat(['セット']);
   PRODUCTS.forEach(function(p){
     allForms.forEach(function(f){
       var key = p+'_'+f;
       var inp = document.getElementById('price-'+key);
-      if(inp) prices[key] = parseInt(inp.value) || 0;
+      if(inp && inp.value !== '') basePrices[key] = parseInt(inp.value) || 0;
     });
   });
-  saveData('prices', prices);
+  saveData('basePrices', basePrices);
   renderRegister();
-  alert('価格を保存しました');
+  var msg = document.getElementById('price-saved-msg');
+  msg.style.display = '';
+  setTimeout(function(){ msg.style.display = 'none'; }, 2000);
 }
 
 // ===== データ管理 =====
 function exportAllData() {
   var data = {
-    products: PRODUCTS, stock: stock, spareStock: spareStock, prices: prices, sales: sales,
+    products: PRODUCTS, stock: stock, spareStock: spareStock, basePrices: basePrices, sales: sales,
     events: events, makeQueue: makeQueue, makeLog: makeLog, materials: materials,
     exportDate: new Date().toISOString()
   };
@@ -1683,7 +1788,7 @@ function importAllData(event) {
       if (data.products) { PRODUCTS = data.products; saveData('products', PRODUCTS); }
       if (data.stock) { stock = data.stock; saveData('stock', stock); }
       if (data.spareStock) { spareStock = data.spareStock; saveData('spareStock', spareStock); }
-      if (data.prices) { prices = data.prices; saveData('prices', prices); }
+      if (data.basePrices) { basePrices = data.basePrices; saveData('basePrices', basePrices); }
       if (data.sales) { sales = data.sales; saveData('sales', sales); }
       if (data.events) { events = data.events; saveData('events', events); }
       if (data.makeQueue) { makeQueue = data.makeQueue; saveData('makeQueue', makeQueue); }
@@ -1702,11 +1807,11 @@ function resetAllData() {
   if (!confirm('全てのデータをリセットしますか？この操作は元に戻せません。')) return;
   if (!confirm('本当にリセットしますか？')) return;
   PRODUCTS = DEFAULT_PRODUCTS.slice();
-  stock = {}; spareStock = {}; prices = JSON.parse(JSON.stringify(DEFAULT_PRICES)); sales = []; events = []; makeQueue = []; makeLog = []; materials = [];
+  stock = {}; spareStock = {}; basePrices = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = [];
   saveData('products', PRODUCTS);
   saveData('stock', stock);
   saveData('spareStock', spareStock);
-  saveData('prices', prices);
+  saveData('basePrices', basePrices);
   saveData('sales', sales);
   saveData('events', events);
   saveData('makeQueue', makeQueue);
@@ -1720,8 +1825,8 @@ function resetAllData() {
 // ===== 初期化 =====
 initProductSelects();
 onChannelChange();
+updateRegContextSelect();
 renderRegister();
-updateRegEventSelect();
 renderSales();
 renderStock();
 renderMaterials();
