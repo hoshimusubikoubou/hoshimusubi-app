@@ -354,6 +354,25 @@ button.sm.ok:hover{background:var(--ok-bg);}
 </div>
 
 <script>
+// ===== タップ音 =====
+var _audioCtx = null;
+function beep(){
+  if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  var osc = _audioCtx.createOscillator();
+  var gain = _audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(_audioCtx.destination);
+  osc.frequency.value = 1800;
+  osc.type = 'sine';
+  gain.gain.setValueAtTime(0.15, _audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.08);
+  osc.start(_audioCtx.currentTime);
+  osc.stop(_audioCtx.currentTime + 0.08);
+}
+document.addEventListener('click', function(e){
+  if(e.target.closest('button')) beep();
+});
+
 // ===== 定数 =====
 var DEFAULT_PRODUCTS = ['深澄','温火','木霞','木霊','新月の雫','金木犀','ゆず'];
 var FORMS = ['線香','1gコーン','2gコーン'];
