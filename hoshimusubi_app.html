@@ -128,6 +128,27 @@ button.sm.ok:hover{background:var(--ok-bg);}
 @media(max-width:400px){
   .grid3{grid-template-columns:1fr 1fr;}
 }
+
+/* 領収書モーダル */
+.rcpt-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.rcpt-modal{background:var(--bg);border-radius:12px;max-width:420px;width:100%;padding:16px;margin:auto 0;}
+.rcpt-paper{background:#fff;border:1px solid #ddd;border-radius:4px;padding:28px 24px;font-family:'Noto Sans JP',sans-serif;}
+.rcpt-paper .rcpt-logo{text-align:center;margin-bottom:8px;min-height:20px;}
+.rcpt-paper .rcpt-logo img{max-height:50px;max-width:160px;}
+.rcpt-paper .rcpt-title{text-align:center;font-size:22px;font-weight:700;letter-spacing:.3em;margin-bottom:14px;}
+.rcpt-paper .rcpt-meta{text-align:right;font-size:11px;color:#888;margin-bottom:12px;}
+.rcpt-paper .rcpt-addr{font-size:18px;font-weight:700;padding:6px 0 4px;border-bottom:2px solid #1a1a18;margin-bottom:10px;}
+.rcpt-paper .rcpt-stmt{text-align:center;font-size:12px;color:#888;margin-bottom:10px;}
+.rcpt-paper .rcpt-total-box{border:2px solid #5b4a3f;border-radius:4px;padding:10px;text-align:center;margin-bottom:10px;}
+.rcpt-paper .rcpt-total-label{font-size:11px;color:#888;}
+.rcpt-paper .rcpt-total-val{font-size:26px;font-weight:700;color:#1a1a18;}
+.rcpt-paper .rcpt-desc{font-size:12px;color:#888;margin-bottom:12px;}
+.rcpt-paper table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;}
+.rcpt-paper th{text-align:left;padding:4px 0;font-size:10px;color:#888;border-bottom:1px solid #ddd;font-weight:500;}
+.rcpt-paper td{padding:3px 0;border-bottom:1px solid #f0f0ee;}
+.rcpt-paper .rcpt-pay{font-size:11px;color:#888;margin-top:8px;}
+.rcpt-paper .rcpt-brand{border-top:1px solid #5b4a3f;margin-top:20px;padding-top:10px;text-align:right;}
+.rcpt-paper .rcpt-brand-name{font-size:15px;font-weight:700;color:#5b4a3f;letter-spacing:.1em;}
 </style>
 </head>
 <body>
@@ -356,6 +377,11 @@ button.sm.ok:hover{background:var(--ok-bg);}
 
   <div class="card">
     <div class="card-title">イベント一覧</div>
+    <div class="field" style="margin-bottom:8px;">
+      <select id="ev-filter" onchange="renderEvents()">
+        <option value="_all">すべて表示</option>
+      </select>
+    </div>
     <div id="ev-list"></div>
   </div>
 </div>
@@ -412,10 +438,24 @@ button.sm.ok:hover{background:var(--ok-bg);}
     <button class="primary" onclick="addProduct()">追加する</button>
   </div>
   <div class="card">
-    <div class="card-title">通常販売価格</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">レジのデフォルト価格です。イベント別の価格はイベント管理タブで設定できます。</p>
+    <div class="card-title">EC販売価格</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">オンライン販売（BASE等）用の価格です。未設定の場合は通常価格が使われます。</p>
+    <div id="ec-prices"></div>
+    <button class="primary" style="margin-top:8px;" onclick="saveEcPrices()">EC価格を保存</button>
+    <p id="ec-price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
+  </div>
+  <div class="card">
+    <div class="card-title">直販価格</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">直接販売用の価格です。未設定の場合は通常価格が使われます。</p>
+    <div id="direct-prices"></div>
+    <button class="primary" style="margin-top:8px;" onclick="saveDirectPrices()">直販価格を保存</button>
+    <p id="direct-price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
+  </div>
+  <div class="card">
+    <div class="card-title">通常価格（ベース）</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">他の価格が未設定の場合に使われるデフォルト価格です。</p>
     <div id="prd-prices"></div>
-    <button class="primary" style="margin-top:8px;" onclick="saveBasePrices()">価格を保存</button>
+    <button class="primary" style="margin-top:8px;" onclick="saveBasePrices()">通常価格を保存</button>
     <p id="price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
   </div>
   <div class="card">
@@ -424,6 +464,16 @@ button.sm.ok:hover{background:var(--ok-bg);}
     <div id="svc-prices"></div>
     <button class="primary" style="margin-top:8px;" onclick="saveServicePrices()">価格を保存</button>
     <p id="svc-price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
+  </div>
+  <div class="card">
+    <div class="card-title">領収書ロゴ</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">領収書に表示するロゴ画像を設定します。</p>
+    <div id="logo-preview" style="margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="sm" onclick="document.getElementById('logo-fi').click()">ロゴを設定</button>
+      <input type="file" id="logo-fi" accept="image/*" style="display:none" onchange="uploadLogo(event)">
+      <button class="sm danger" onclick="removeLogo()">削除</button>
+    </div>
   </div>
   <div class="card" style="margin-top:8px;">
     <div class="card-title">データ管理</div>
@@ -435,6 +485,24 @@ button.sm.ok:hover{background:var(--ok-bg);}
     </div>
   </div>
 </div>
+
+<!-- 領収書モーダル -->
+<div class="rcpt-overlay" id="receipt-modal" style="display:none;" onclick="if(event.target===this)closeReceiptModal()">
+  <div class="rcpt-modal">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:10px;text-transform:uppercase;">領収書を発行</div>
+    <div class="field" style="margin-bottom:10px;">
+      <label>宛名（空欄で「上様」）</label>
+      <input type="text" id="receipt-addressee" placeholder="上様" oninput="updateReceiptPreview()">
+    </div>
+    <div id="receipt-preview"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <button class="primary" style="flex:1;min-width:120px;" onclick="saveReceiptImage()">画像として保存</button>
+      <button class="sm" style="flex:1;min-width:80px;" onclick="printReceipt()">PDF/印刷</button>
+      <button class="sm" style="min-width:60px;" onclick="closeReceiptModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+<canvas id="receipt-canvas" style="position:absolute;left:-9999px;top:-9999px;"></canvas>
 
 <!-- 下部タブバー -->
 <div class="tab-bar">
@@ -556,11 +624,19 @@ var events = loadData('events', DEFAULT_EVENTS);
 var materials = loadData('materials', []);
 // 梱包中の対象ID
 var packingTargetId = null;
-// 通常価格（ユーザーが設定タブで設定）: { "深澄_線香": 1000, ... }
+// 通常価格（ユーザーが設定タブで設定・フォールバック）: { "深澄_線香": 1000, ... }
 var basePrices = loadData('basePrices', {});
+// EC価格（オンライン販売用）
+var ecPrices = loadData('ecPrices', {});
+// 直販価格（直接販売用）
+var directPrices = loadData('directPrices', {});
 // イベント別価格はevent.pricesに格納: { "深澄_線香": 1200, ... }
 // レジカート
 var cart = [];
+// 領収書
+var receiptCounter = loadData('receiptCounter', 0);
+var receiptLogo = loadData('receiptLogo', '');
+var lastCheckoutData = null;
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function stockKey(product, form) { return product + '_' + form; }
@@ -599,12 +675,18 @@ function initProductSelects() {
 }
 
 // ===== レジ =====
-function getPrice(product, form, eventId) {
+function getPrice(product, form, context) {
   var key = product + '_' + form;
-  if (eventId) {
-    var ev = events.find(function(e){return e.id===eventId;});
+  // イベント価格（特殊キー以外はイベントIDとみなす）
+  if (context && context !== '_default' && context !== '_ec' && context !== '_direct') {
+    var ev = events.find(function(e){return e.id===context;});
     if (ev && ev.prices && ev.prices[key] !== undefined && ev.prices[key] > 0) return ev.prices[key];
   }
+  // EC価格
+  if (context === '_ec' && ecPrices[key] > 0) return ecPrices[key];
+  // 直販価格
+  if (context === '_direct' && directPrices[key] > 0) return directPrices[key];
+  // 通常価格（フォールバック）
   return basePrices[key] || 0;
 }
 
@@ -613,25 +695,33 @@ function getRegContext() { return document.getElementById('rg-context').value; }
 function updateRegContextSelect() {
   var sel = document.getElementById('rg-context');
   var cur = sel.value;
-  sel.innerHTML = '<option value="_default">通常価格</option>';
-  events.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(ev) {
-    var o = document.createElement('option');
-    o.value = ev.id;
-    o.textContent = ev.name + '（' + ev.date.replace(/-/g,'/') + '）';
-    sel.appendChild(o);
-  });
+  var html = '';
+  // イベント価格（optgroup）
+  if (events.length) {
+    html += '<optgroup label="イベント価格">';
+    events.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(ev) {
+      html += '<option value="' + ev.id + '">' + ev.name + '（' + ev.date.replace(/-/g,'/') + '）</option>';
+    });
+    html += '</optgroup>';
+  }
+  // EC・直販・通常
+  html += '<option value="_ec">EC価格（オンライン販売）</option>';
+  html += '<option value="_direct">直販価格（直接販売）</option>';
+  html += '<option value="_default">通常価格</option>';
+  sel.innerHTML = html;
   sel.value = cur || '_default';
+  // 選択値が無効なら通常価格にフォールバック
+  if (!sel.value || sel.selectedIndex === -1) sel.value = '_default';
 }
 
 function renderRegister() {
   var form = document.getElementById('rg-form').value;
   var ctx = getRegContext();
-  var eventId = ctx === '_default' ? '' : ctx;
   var el = document.getElementById('rg-products');
   var html = '';
   PRODUCTS.forEach(function(p) {
     var stk = (form === 'セット') ? 99 : getStock(p, form);
-    var price = getPrice(p, form, eventId);
+    var price = getPrice(p, form, ctx);
     var noStock = stk <= 0;
     var disabled = noStock;
     html += '<div class="reg-btn' + (disabled?' disabled':'') + '" ' + (disabled?'':'onclick="addToCart(\''+p+'\')"') + '>';
@@ -648,7 +738,7 @@ function renderRegister() {
 
   // お香立てボタン
   var holderEl = document.getElementById('rg-holder');
-  var holderPrice = getPrice('お香立て', '単品', eventId);
+  var holderPrice = getPrice('お香立て', '単品', ctx);
   var holderStk = getHolderStock();
   var holderDisabled = holderStk <= 0;
   var hHtml = '<div class="reg-btn' + (holderDisabled?' disabled':'') + '" ' + (holderDisabled?'':'onclick="addToCart(\'お香立て\', \'単品\')"') + '>';
@@ -684,10 +774,9 @@ function renderRegister() {
 function addToCart(product, formOverride) {
   var form = formOverride || document.getElementById('rg-form').value;
   var ctx = getRegContext();
-  var eventId = ctx === '_default' ? '' : ctx;
-  // サービスは常に固定価格（eventId空）
-  var priceEventId = (form === 'サービス') ? '' : eventId;
-  var price = getPrice(product, form, priceEventId);
+  // サービスは常に固定価格
+  var priceCtx = (form === 'サービス') ? '_default' : ctx;
+  var price = getPrice(product, form, priceCtx);
   // お香立ての在庫チェック
   if (form === '単品') {
     var inCart = 0;
@@ -729,11 +818,10 @@ function removeCartItem(idx) {
 
 function getCartTotal() {
   var ctx = getRegContext();
-  var eventId = ctx === '_default' ? '' : ctx;
   var t = 0;
   for (var i = 0; i < cart.length; i++) {
-    var eid = cart[i].form === 'サービス' ? '' : eventId;
-    t += getPrice(cart[i].product, cart[i].form, eid) * cart[i].qty;
+    var pCtx = cart[i].form === 'サービス' ? '_default' : ctx;
+    t += getPrice(cart[i].product, cart[i].form, pCtx) * cart[i].qty;
   }
   return t;
 }
@@ -748,12 +836,11 @@ function renderCart() {
     return;
   }
   var ctx = getRegContext();
-  var eventId = ctx === '_default' ? '' : ctx;
   var html = '';
   for (var i = 0; i < cart.length; i++) {
     var c = cart[i];
-    var eid = c.form === 'サービス' ? '' : eventId;
-    c.price = getPrice(c.product, c.form, eid);
+    var pCtx = c.form === 'サービス' ? '_default' : ctx;
+    c.price = getPrice(c.product, c.form, pCtx);
     html += '<div class="cart-item">';
     html += '<span class="ci-name">' + c.product + '（' + c.form + '）</span>';
     html += '<div class="counter">';
@@ -794,8 +881,18 @@ function doCheckout() {
   var total = getCartTotal();
   var payMethod = document.getElementById('rg-pay').value;
   var ctx = getRegContext();
-  var eventId = (ctx !== '_default') ? ctx : '';
-  var channel = eventId ? 'イベント' : '直販';
+  var eventId = '';
+  var channel;
+  if (ctx !== '_default' && ctx !== '_ec' && ctx !== '_direct') {
+    eventId = ctx;
+    channel = 'イベント';
+  } else if (ctx === '_ec') {
+    channel = 'EC';
+  } else if (ctx === '_direct') {
+    channel = '直販';
+  } else {
+    channel = '直販';
+  }
   var now = new Date().toISOString();
 
   // カートの中身を処理
@@ -828,6 +925,14 @@ function doCheckout() {
   }
   saveData('sales', sales);
 
+  // 領収書用にカートデータを保持
+  lastCheckoutData = {
+    items: cart.map(function(c){ return {product:c.product, form:c.form, qty:c.qty, price:c.price}; }),
+    total: total,
+    payMethod: payMethod,
+    date: now
+  };
+
   // カートクリア＋UI更新
   cart = [];
   document.getElementById('rg-received').value = '';
@@ -835,10 +940,13 @@ function doCheckout() {
   renderCart();
   renderRegister();
 
-  // 完了表示
-  doneBanner.textContent = '会計完了 ¥' + total.toLocaleString() + '（' + payMethod + '）';
+  // 完了表示（領収書ボタン付き）
+  doneBanner.innerHTML = '会計完了 ¥' + total.toLocaleString() + '（' + payMethod + '）'
+    + '<div style="margin-top:8px;display:flex;gap:8px;justify-content:center;">'
+    + '<button onclick="openReceiptModal()" style="font-family:inherit;font-size:13px;font-weight:700;padding:6px 16px;border-radius:6px;border:1px solid #fff;background:transparent;color:#fff;cursor:pointer;">領収書を発行</button>'
+    + '<button onclick="document.getElementById(\'rg-done-banner\').style.display=\'none\'" style="font-family:inherit;font-size:12px;padding:6px 12px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff;cursor:pointer;">閉じる</button>'
+    + '</div>';
   doneBanner.style.display = 'block';
-  setTimeout(function(){ doneBanner.style.display = 'none'; }, 3000);
 }
 
 // ===== 販売記録 =====
@@ -1113,7 +1221,25 @@ function renderEvents() {
   var el = document.getElementById('ev-list');
   if (!events.length) { el.innerHTML = '<div class="empty-msg">イベントが登録されていません</div>'; return; }
 
+  // フィルタードロップダウン更新
+  var filterSel = document.getElementById('ev-filter');
+  var curFilter = filterSel.value;
+  filterSel.innerHTML = '<option value="_all">すべて表示</option>';
+  events.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(ev) {
+    var o = document.createElement('option');
+    o.value = ev.id;
+    o.textContent = ev.name + '（' + ev.date.replace(/-/g,'/') + '）';
+    filterSel.appendChild(o);
+  });
+  filterSel.value = curFilter || '_all';
+  // 選択中のフィルターが存在しなくなった場合はリセット
+  if (filterSel.value !== curFilter) filterSel.value = '_all';
+
   var sorted = events.slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+  // フィルター適用
+  if (filterSel.value !== '_all') {
+    sorted = sorted.filter(function(ev){ return ev.id === filterSel.value; });
+  }
   var html = '';
   sorted.forEach(function(ev) {
     var evSales = getEventSales(ev.id);
@@ -1293,33 +1419,125 @@ function renderReport() {
   html += '<div style="font-size:18px;font-weight:700;color:' + (profit>=0?'var(--ok)':'var(--danger)') + ';">¥' + profit.toLocaleString() + '</div></div>';
   html += '</div></div>';
 
-  // チャンネル別売上（手動売上はイベントに加算）
-  var channels = {};
-  monthSales.forEach(function(s) {
-    if (!channels[s.channel]) channels[s.channel] = 0;
-    channels[s.channel] += (s.amount||0);
-  });
-  if (manualSalesTotal > 0) {
-    if (!channels['イベント']) channels['イベント'] = 0;
-    channels['イベント'] += manualSalesTotal;
-  }
-  html += '<div class="card">';
-  html += '<div class="card-title">チャンネル別売上</div>';
-  var chKeys = Object.keys(channels).sort(function(a,b){return channels[b]-channels[a];});
-  if (chKeys.length) {
-    chKeys.forEach(function(ch) {
-      var pct = totalSales > 0 ? Math.round(channels[ch]/totalSales*100) : 0;
-      html += '<div class="list-item" style="padding:6px 0;">';
-      html += '<div class="main"><div class="name" style="font-size:13px;">' + ch + '</div>';
-      html += '<div style="margin-top:4px;height:6px;background:#eee;border-radius:3px;overflow:hidden;">';
-      html += '<div style="height:100%;width:' + pct + '%;background:var(--accent);border-radius:3px;"></div></div></div>';
-      html += '<div style="text-align:right;"><span class="stock-num" style="font-size:15px;">¥' + channels[ch].toLocaleString() + '</span>';
-      html += '<div style="font-size:10px;color:var(--muted);">' + pct + '%</div></div>';
-      html += '</div>';
+  // 売上をカテゴリに分類するヘルパー
+  function categorizeSales(salesList) {
+    var cats = {};
+    salesList.forEach(function(s) {
+      var label;
+      if (s.form === 'サービス') {
+        label = s.product; // 心理テスト, オリジナル調香 etc. 個別表示
+      } else if (s.product === 'お香立て') {
+        label = 'お香立て';
+      } else {
+        label = 'お香';
+      }
+      if (!cats[label]) cats[label] = 0;
+      cats[label] += (s.amount || 0);
     });
-  } else {
-    html += '<div class="empty-msg">売上データなし</div>';
+    return cats;
   }
+
+  // カテゴリ内訳をHTMLで出力するヘルパー
+  function renderCats(cats) {
+    var out = '';
+    // 表示順: お香 → お香立て → オプション（サービス各種）
+    var order = ['お香', 'お香立て'];
+    var keys = Object.keys(cats);
+    // オプション項目を収集
+    var optionKeys = keys.filter(function(k){ return k !== 'お香' && k !== 'お香立て'; }).sort();
+    order.concat(optionKeys).forEach(function(label) {
+      if (!cats[label] || cats[label] <= 0) return;
+      out += '<div style="display:flex;justify-content:space-between;padding:2px 12px;font-size:12px;">';
+      out += '<span style="color:var(--muted);">' + label + '</span>';
+      out += '<span>¥' + cats[label].toLocaleString() + '</span></div>';
+    });
+    return out;
+  }
+
+  // イベント別の販売データを収集
+  var eventSalesMap = {};
+  var nonEventSales = {};
+  monthSales.forEach(function(s) {
+    if (s.channel === 'イベント' && s.eventId) {
+      if (!eventSalesMap[s.eventId]) eventSalesMap[s.eventId] = [];
+      eventSalesMap[s.eventId].push(s);
+    } else {
+      var ch = s.channel || '直販';
+      if (!nonEventSales[ch]) nonEventSales[ch] = [];
+      nonEventSales[ch].push(s);
+    }
+  });
+
+  // チャンネル別売上内訳
+  html += '<div class="card">';
+  html += '<div class="card-title">チャンネル別売上内訳</div>';
+  var hasAny = false;
+
+  // 1. イベントごとの内訳
+  monthEvents.forEach(function(ev) {
+    var evSalesList = eventSalesMap[ev.id] || [];
+    var cats = categorizeSales(evSalesList);
+    // 手動売上を統合
+    var ms = ev.manualSales || {};
+    if (ms.incense) cats['お香'] = (cats['お香']||0) + ms.incense;
+    if (ms.holder) cats['お香立て'] = (cats['お香立て']||0) + ms.holder;
+    if (ms.diagnosis) cats['心理テスト'] = (cats['心理テスト']||0) + ms.diagnosis;
+    if (ms.blending) cats['オリジナル調香'] = (cats['オリジナル調香']||0) + ms.blending;
+    if (ms.other) cats['その他'] = (cats['その他']||0) + ms.other;
+    var evTotal = 0;
+    Object.keys(cats).forEach(function(k){ evTotal += cats[k]; });
+    if (evTotal <= 0) return;
+    hasAny = true;
+    html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0ee;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+    html += '<span style="font-size:13px;font-weight:700;">' + ev.name + '</span>';
+    html += '<span style="font-size:14px;font-weight:700;color:var(--accent);">¥' + evTotal.toLocaleString() + '</span></div>';
+    html += renderCats(cats);
+    html += '</div>';
+    // このイベントの処理済みフラグ
+    delete eventSalesMap[ev.id];
+  });
+
+  // monthEventsに含まれないが販売データがあるイベント
+  Object.keys(eventSalesMap).forEach(function(eid) {
+    var evSalesList = eventSalesMap[eid];
+    if (!evSalesList.length) return;
+    var cats = categorizeSales(evSalesList);
+    var evTotal = 0;
+    Object.keys(cats).forEach(function(k){ evTotal += cats[k]; });
+    if (evTotal <= 0) return;
+    hasAny = true;
+    var ev = events.find(function(e){return e.id===eid;});
+    var evName = ev ? ev.name : 'イベント';
+    html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0ee;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+    html += '<span style="font-size:13px;font-weight:700;">' + evName + '</span>';
+    html += '<span style="font-size:14px;font-weight:700;color:var(--accent);">¥' + evTotal.toLocaleString() + '</span></div>';
+    html += renderCats(cats);
+    html += '</div>';
+  });
+
+  // 2. 非イベントチャンネル（EC, 直販, BASE等）
+  var chOrder = ['EC', '直販', 'BASE', '古民家ワークショップ', '委託販売'];
+  var renderedCh = {};
+  chOrder.forEach(function(ch){ if (nonEventSales[ch]) renderedCh[ch] = true; });
+  Object.keys(nonEventSales).forEach(function(ch){ if (!renderedCh[ch]) { chOrder.push(ch); renderedCh[ch] = true; } });
+  chOrder.forEach(function(ch) {
+    if (!nonEventSales[ch]) return;
+    var cats = categorizeSales(nonEventSales[ch]);
+    var chTotal = 0;
+    Object.keys(cats).forEach(function(k){ chTotal += cats[k]; });
+    if (chTotal <= 0) return;
+    hasAny = true;
+    html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0ee;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+    html += '<span style="font-size:13px;font-weight:700;">' + ch + '</span>';
+    html += '<span style="font-size:14px;font-weight:700;color:var(--accent);">¥' + chTotal.toLocaleString() + '</span></div>';
+    html += renderCats(cats);
+    html += '</div>';
+  });
+
+  if (!hasAny) html += '<div class="empty-msg">売上データなし</div>';
   html += '</div>';
 
   // イベント別収支
@@ -1838,9 +2056,70 @@ function renderProducts() {
     html += '</div></div>';
   });
   el.innerHTML = html;
+  renderEcPrices();
+  renderDirectPrices();
   renderPrices();
   renderServicePrices();
 }
+
+function renderCategoryPrices(elId, priceData, prefix) {
+  var el = document.getElementById(elId);
+  var allForms = FORMS.concat(['セット']);
+  var html = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html += '<tr><th style="text-align:left;padding:4px 6px;border-bottom:2px solid var(--border);font-size:11px;color:var(--muted);">商品</th>';
+  allForms.forEach(function(f){ html += '<th style="text-align:center;padding:4px 4px;border-bottom:2px solid var(--border);font-size:10px;color:var(--muted);">'+f+'</th>'; });
+  html += '</tr>';
+  PRODUCTS.forEach(function(p){
+    html += '<tr>';
+    html += '<td style="padding:4px 6px;border-bottom:1px solid #eee;font-weight:500;">'+p+'</td>';
+    allForms.forEach(function(f){
+      var key = p+'_'+f;
+      html += '<td style="padding:2px 2px;border-bottom:1px solid #eee;text-align:center;">';
+      html += '<input type="number" id="'+prefix+'-'+key+'" value="'+(priceData[key]||'')+'" min="0" placeholder="'+(basePrices[key]||0)+'" style="width:60px;font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</table></div>';
+  // お香立て価格行
+  var hKey = 'お香立て_単品';
+  html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">';
+  html += '<div style="display:flex;align-items:center;gap:8px;font-size:13px;">';
+  html += '<span style="font-weight:500;min-width:80px;">お香立て</span>';
+  html += '<input type="number" id="'+prefix+'-'+hKey+'" value="'+(priceData[hKey]||'')+'" min="0" placeholder="'+(basePrices[hKey]||0)+'" style="width:80px;font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
+  html += '<span style="font-size:11px;color:var(--muted);">円</span>';
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+function saveCategoryPrices(priceData, dataKey, prefix, msgId) {
+  var allForms = FORMS.concat(['セット']);
+  PRODUCTS.forEach(function(p){
+    allForms.forEach(function(f){
+      var key = p+'_'+f;
+      var inp = document.getElementById(prefix+'-'+key);
+      if(inp) {
+        if(inp.value !== '' && parseInt(inp.value) > 0) priceData[key] = parseInt(inp.value);
+        else delete priceData[key];
+      }
+    });
+  });
+  var hInp = document.getElementById(prefix+'-お香立て_単品');
+  if(hInp) {
+    if(hInp.value !== '' && parseInt(hInp.value) > 0) priceData['お香立て_単品'] = parseInt(hInp.value);
+    else delete priceData['お香立て_単品'];
+  }
+  saveData(dataKey, priceData);
+  renderRegister();
+  var msg = document.getElementById(msgId);
+  msg.style.display = '';
+  setTimeout(function(){ msg.style.display = 'none'; }, 2000);
+}
+
+function renderEcPrices() { renderCategoryPrices('ec-prices', ecPrices, 'ecpr'); }
+function renderDirectPrices() { renderCategoryPrices('direct-prices', directPrices, 'dirpr'); }
+function saveEcPrices() { saveCategoryPrices(ecPrices, 'ecPrices', 'ecpr', 'ec-price-saved-msg'); }
+function saveDirectPrices() { saveCategoryPrices(directPrices, 'directPrices', 'dirpr', 'direct-price-saved-msg'); }
 
 function renderPrices() {
   var el = document.getElementById('prd-prices');
@@ -1919,11 +2198,354 @@ function saveServicePrices() {
   setTimeout(function(){ msg.style.display = 'none'; }, 2000);
 }
 
+// ===== 領収書 =====
+function getReceiptDescription(items) {
+  var hasProduct = false, hasService = false;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].form === 'サービス') hasService = true;
+    else hasProduct = true;
+  }
+  if (hasProduct && hasService) return '商品代・サービス料として';
+  if (hasService) return 'サービス料として';
+  return '商品代として';
+}
+
+function formatReceiptDate(isoStr) {
+  var d = new Date(isoStr);
+  return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+}
+
+function generateReceiptNumber() {
+  receiptCounter++;
+  saveData('receiptCounter', receiptCounter);
+  var num = '' + receiptCounter;
+  while (num.length < 6) num = '0' + num;
+  return 'R-' + num;
+}
+
+function buildReceiptHtml(addressee, receiptNo, dateStr, data) {
+  var addr = addressee || '上様';
+  var desc = getReceiptDescription(data.items);
+  var h = '<div class="rcpt-paper">';
+  // ロゴ
+  h += '<div class="rcpt-logo">';
+  if (receiptLogo) h += '<img src="' + receiptLogo + '">';
+  h += '</div>';
+  // タイトル
+  h += '<div class="rcpt-title">領 収 書</div>';
+  // メタ
+  h += '<div class="rcpt-meta">No. ' + receiptNo + '<br>' + dateStr + '</div>';
+  // 宛名
+  h += '<div class="rcpt-addr">' + addr + '　様</div>';
+  // 文言
+  h += '<div class="rcpt-stmt">下記の通り領収いたしました</div>';
+  // 合計
+  h += '<div class="rcpt-total-box"><div class="rcpt-total-label">合計金額（税込）</div>';
+  h += '<div class="rcpt-total-val">¥' + data.total.toLocaleString() + '</div></div>';
+  // 但し書き
+  h += '<div class="rcpt-desc">但し　' + desc + '</div>';
+  // 明細
+  h += '<table><tr><th style="text-align:left;">内訳</th><th style="text-align:center;width:40px;">数量</th><th style="text-align:right;">金額</th></tr>';
+  for (var i = 0; i < data.items.length; i++) {
+    var it = data.items[i];
+    h += '<tr><td>' + it.product + '（' + it.form + '）</td>';
+    h += '<td style="text-align:center;">' + it.qty + '</td>';
+    h += '<td style="text-align:right;">¥' + (it.price * it.qty).toLocaleString() + '</td></tr>';
+  }
+  h += '</table>';
+  // 支払方法
+  h += '<div class="rcpt-pay">お支払方法: ' + data.payMethod + '</div>';
+  // ブランド
+  h += '<div class="rcpt-brand"><div class="rcpt-brand-name">星結び香房</div></div>';
+  h += '</div>';
+  return h;
+}
+
+function openReceiptModal() {
+  if (!lastCheckoutData) { alert('会計データがありません'); return; }
+  // 採番（モーダルを開くたびに新番号）
+  lastCheckoutData._receiptNo = generateReceiptNumber();
+  lastCheckoutData._dateStr = formatReceiptDate(lastCheckoutData.date);
+  document.getElementById('receipt-addressee').value = '';
+  document.getElementById('receipt-modal').style.display = '';
+  updateReceiptPreview();
+}
+
+function closeReceiptModal() {
+  document.getElementById('receipt-modal').style.display = 'none';
+}
+
+function updateReceiptPreview() {
+  if (!lastCheckoutData) return;
+  var addr = document.getElementById('receipt-addressee').value.trim();
+  document.getElementById('receipt-preview').innerHTML =
+    buildReceiptHtml(addr, lastCheckoutData._receiptNo, lastCheckoutData._dateStr, lastCheckoutData);
+}
+
+function drawReceiptCanvas(callback) {
+  var data = lastCheckoutData;
+  var addr = document.getElementById('receipt-addressee').value.trim() || '上様';
+  var desc = getReceiptDescription(data.items);
+  var canvas = document.getElementById('receipt-canvas');
+  var scale = 2; // Retina品質
+  var W = 600;
+  var padding = 40;
+
+  // 高さを計算
+  var itemCount = data.items.length;
+  var H = 580 + itemCount * 28;
+
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  var c = canvas.getContext('2d');
+  c.scale(scale, scale);
+
+  // 背景
+  c.fillStyle = '#fff';
+  c.fillRect(0, 0, W, H);
+
+  var y = 30;
+  var font = '"Noto Sans JP", "Hiragino Sans", sans-serif';
+
+  function drawLogo(img) {
+    if (img) {
+      var maxH = 40, maxW = 140;
+      var ratio = Math.min(maxW / img.width, maxH / img.height);
+      var w = img.width * ratio, h = img.height * ratio;
+      c.drawImage(img, (W - w) / 2, y, w, h);
+      y += h + 8;
+    }
+
+    // タイトル
+    c.fillStyle = '#1a1a18';
+    c.font = '700 24px ' + font;
+    c.textAlign = 'center';
+    c.fillText('領 収 書', W / 2, y + 24);
+    y += 44;
+
+    // No. + 日付
+    c.font = '400 11px ' + font;
+    c.fillStyle = '#888';
+    c.textAlign = 'right';
+    c.fillText('No. ' + data._receiptNo, W - padding, y);
+    y += 16;
+    c.fillText(data._dateStr, W - padding, y);
+    y += 24;
+
+    // 宛名
+    c.textAlign = 'left';
+    c.fillStyle = '#1a1a18';
+    c.font = '700 18px ' + font;
+    c.fillText(addr + '　様', padding, y);
+    y += 6;
+    c.strokeStyle = '#1a1a18';
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(padding, y); c.lineTo(W - padding, y); c.stroke();
+    y += 22;
+
+    // 文言
+    c.font = '400 11px ' + font;
+    c.fillStyle = '#888';
+    c.textAlign = 'center';
+    c.fillText('下記の通り領収いたしました', W / 2, y);
+    y += 20;
+
+    // 合計枠
+    c.strokeStyle = '#5b4a3f';
+    c.lineWidth = 2;
+    c.strokeRect(padding, y, W - padding * 2, 50);
+    c.font = '400 10px ' + font;
+    c.fillStyle = '#888';
+    c.textAlign = 'center';
+    c.fillText('合計金額（税込）', W / 2, y + 16);
+    c.font = '700 24px ' + font;
+    c.fillStyle = '#1a1a18';
+    c.fillText('¥' + data.total.toLocaleString(), W / 2, y + 42);
+    y += 62;
+
+    // 但し書き
+    c.font = '400 11px ' + font;
+    c.fillStyle = '#888';
+    c.textAlign = 'left';
+    c.fillText('但し　' + desc, padding, y);
+    y += 20;
+
+    // 区切り
+    c.strokeStyle = '#ddd';
+    c.lineWidth = 1;
+    c.beginPath(); c.moveTo(padding, y); c.lineTo(W - padding, y); c.stroke();
+    y += 18;
+
+    // 明細ヘッダー
+    c.font = '500 10px ' + font;
+    c.fillStyle = '#888';
+    c.textAlign = 'left';
+    c.fillText('内訳', padding, y);
+    c.textAlign = 'center';
+    c.fillText('数量', W - padding - 80, y);
+    c.textAlign = 'right';
+    c.fillText('金額', W - padding, y);
+    y += 4;
+    c.beginPath(); c.moveTo(padding, y); c.lineTo(W - padding, y); c.stroke();
+    y += 16;
+
+    // 明細行
+    c.font = '400 12px ' + font;
+    c.fillStyle = '#1a1a18';
+    for (var i = 0; i < data.items.length; i++) {
+      var it = data.items[i];
+      c.textAlign = 'left';
+      c.fillText(it.product + '（' + it.form + '）', padding, y);
+      c.textAlign = 'center';
+      c.fillText('' + it.qty, W - padding - 80, y);
+      c.textAlign = 'right';
+      c.fillText('¥' + (it.price * it.qty).toLocaleString(), W - padding, y);
+      y += 22;
+    }
+
+    y += 6;
+    c.strokeStyle = '#ddd';
+    c.beginPath(); c.moveTo(padding, y); c.lineTo(W - padding, y); c.stroke();
+    y += 16;
+
+    // 支払方法
+    c.font = '400 11px ' + font;
+    c.fillStyle = '#888';
+    c.textAlign = 'left';
+    c.fillText('お支払方法: ' + data.payMethod, padding, y);
+    y += 30;
+
+    // ブランド
+    c.strokeStyle = '#5b4a3f';
+    c.lineWidth = 1;
+    c.beginPath(); c.moveTo(padding, y); c.lineTo(W - padding, y); c.stroke();
+    y += 20;
+    c.font = '700 15px ' + font;
+    c.fillStyle = '#5b4a3f';
+    c.textAlign = 'right';
+    c.fillText('星結び香房', W - padding, y);
+
+    // 実際の高さでキャンバスをトリム
+    var finalH = y + 30;
+    if (finalH < H) {
+      var imgData = c.getImageData(0, 0, W * scale, finalH * scale);
+      canvas.height = finalH * scale;
+      canvas.style.height = finalH + 'px';
+      c.putImageData(imgData, 0, 0);
+    }
+
+    if (callback) callback();
+  }
+
+  // ロゴ画像の読み込み
+  if (receiptLogo) {
+    var img = new Image();
+    img.onload = function() { drawLogo(img); };
+    img.onerror = function() { drawLogo(null); };
+    img.src = receiptLogo;
+  } else {
+    drawLogo(null);
+  }
+}
+
+function saveReceiptImage() {
+  drawReceiptCanvas(function() {
+    var canvas = document.getElementById('receipt-canvas');
+    canvas.toBlob(function(blob) {
+      if (!blob) return;
+      var fileName = '領収書_' + lastCheckoutData._receiptNo + '.png';
+      // Web Share API（モバイル対応）
+      if (navigator.share && navigator.canShare) {
+        var file = new File([blob], fileName, {type: 'image/png'});
+        var shareData = {files: [file]};
+        if (navigator.canShare(shareData)) {
+          navigator.share(shareData).catch(function(){
+            downloadBlob(blob, fileName);
+          });
+          return;
+        }
+      }
+      downloadBlob(blob, fileName);
+    }, 'image/png');
+  });
+}
+
+function downloadBlob(blob, fileName) {
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+}
+
+function printReceipt() {
+  var addr = document.getElementById('receipt-addressee').value.trim();
+  var html = buildReceiptHtml(addr, lastCheckoutData._receiptNo, lastCheckoutData._dateStr, lastCheckoutData);
+  var win = window.open('', '_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">'
+    + '<style>'
+    + 'body{margin:0;padding:20px;font-family:"Noto Sans JP",sans-serif;background:#f7f6f2;display:flex;justify-content:center;}'
+    + '.rcpt-paper{background:#fff;border:1px solid #ddd;border-radius:4px;padding:28px 24px;max-width:400px;width:100%;}'
+    + '.rcpt-logo{text-align:center;margin-bottom:8px;min-height:20px;} .rcpt-logo img{max-height:50px;max-width:160px;}'
+    + '.rcpt-title{text-align:center;font-size:22px;font-weight:700;letter-spacing:.3em;margin-bottom:14px;}'
+    + '.rcpt-meta{text-align:right;font-size:11px;color:#888;margin-bottom:12px;}'
+    + '.rcpt-addr{font-size:18px;font-weight:700;padding:6px 0 4px;border-bottom:2px solid #1a1a18;margin-bottom:10px;}'
+    + '.rcpt-stmt{text-align:center;font-size:12px;color:#888;margin-bottom:10px;}'
+    + '.rcpt-total-box{border:2px solid #5b4a3f;border-radius:4px;padding:10px;text-align:center;margin-bottom:10px;}'
+    + '.rcpt-total-label{font-size:11px;color:#888;} .rcpt-total-val{font-size:26px;font-weight:700;}'
+    + '.rcpt-desc{font-size:12px;color:#888;margin-bottom:12px;}'
+    + 'table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;}'
+    + 'th{text-align:left;padding:4px 0;font-size:10px;color:#888;border-bottom:1px solid #ddd;font-weight:500;}'
+    + 'td{padding:3px 0;border-bottom:1px solid #f0f0ee;}'
+    + '.rcpt-pay{font-size:11px;color:#888;margin-top:8px;}'
+    + '.rcpt-brand{border-top:1px solid #5b4a3f;margin-top:20px;padding-top:10px;text-align:right;}'
+    + '.rcpt-brand-name{font-size:15px;font-weight:700;color:#5b4a3f;letter-spacing:.1em;}'
+    + '@media print{body{background:#fff;padding:0;} .rcpt-paper{border:none;box-shadow:none;}}'
+    + '</style></head><body>' + html + '</body></html>');
+  win.document.close();
+  setTimeout(function(){ win.print(); }, 500);
+}
+
+// ロゴ設定
+function uploadLogo(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    receiptLogo = e.target.result;
+    saveData('receiptLogo', receiptLogo);
+    renderLogoPreview();
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function removeLogo() {
+  receiptLogo = '';
+  saveData('receiptLogo', '');
+  renderLogoPreview();
+}
+
+function renderLogoPreview() {
+  var el = document.getElementById('logo-preview');
+  if (receiptLogo) {
+    el.innerHTML = '<img src="' + receiptLogo + '" style="max-height:50px;max-width:160px;border:1px solid var(--border);border-radius:4px;padding:4px;">';
+  } else {
+    el.innerHTML = '<span style="font-size:12px;color:var(--muted);">未設定</span>';
+  }
+}
+
 // ===== データ管理 =====
 function exportAllData() {
   var data = {
-    products: PRODUCTS, stock: stock, spareStock: spareStock, basePrices: basePrices, sales: sales,
-    events: events, makeQueue: makeQueue, makeLog: makeLog, materials: materials, holderStock: holderStock,
+    products: PRODUCTS, stock: stock, spareStock: spareStock,
+    basePrices: basePrices, ecPrices: ecPrices, directPrices: directPrices,
+    sales: sales, events: events, makeQueue: makeQueue, makeLog: makeLog,
+    materials: materials, holderStock: holderStock,
+    receiptCounter: receiptCounter, receiptLogo: receiptLogo,
     exportDate: new Date().toISOString()
   };
   var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
@@ -1945,12 +2567,16 @@ function importAllData(event) {
       if (data.stock) { stock = data.stock; saveData('stock', stock); }
       if (data.spareStock) { spareStock = data.spareStock; saveData('spareStock', spareStock); }
       if (data.basePrices) { basePrices = data.basePrices; saveData('basePrices', basePrices); }
+      if (data.ecPrices) { ecPrices = data.ecPrices; saveData('ecPrices', ecPrices); }
+      if (data.directPrices) { directPrices = data.directPrices; saveData('directPrices', directPrices); }
       if (data.sales) { sales = data.sales; saveData('sales', sales); }
       if (data.events) { events = data.events; saveData('events', events); }
       if (data.makeQueue) { makeQueue = data.makeQueue; saveData('makeQueue', makeQueue); }
       if (data.makeLog) { makeLog = data.makeLog; saveData('makeLog', makeLog); }
       if (data.materials) { materials = data.materials; saveData('materials', materials); }
       if (data.holderStock !== undefined) { holderStock = data.holderStock; saveData('holderStock', holderStock); }
+      if (data.receiptCounter !== undefined) { receiptCounter = data.receiptCounter; saveData('receiptCounter', receiptCounter); }
+      if (data.receiptLogo !== undefined) { receiptLogo = data.receiptLogo; saveData('receiptLogo', receiptLogo); }
       initProductSelects();
       renderProducts();
       alert('インポートしました');
@@ -1964,11 +2590,13 @@ function resetAllData() {
   if (!confirm('全てのデータをリセットしますか？この操作は元に戻せません。')) return;
   if (!confirm('本当にリセットしますか？')) return;
   PRODUCTS = DEFAULT_PRODUCTS.slice();
-  stock = {}; spareStock = {}; basePrices = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = []; holderStock = 0;
+  stock = {}; spareStock = {}; basePrices = {}; ecPrices = {}; directPrices = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = []; holderStock = 0;
   saveData('products', PRODUCTS);
   saveData('stock', stock);
   saveData('spareStock', spareStock);
   saveData('basePrices', basePrices);
+  saveData('ecPrices', ecPrices);
+  saveData('directPrices', directPrices);
   saveData('sales', sales);
   saveData('events', events);
   saveData('makeQueue', makeQueue);
@@ -1988,6 +2616,7 @@ renderRegister();
 renderSales();
 renderStock();
 renderMaterials();
+renderLogoPreview();
 // レポート月を今月に設定
 var _now = new Date();
 document.getElementById('rp-year').value = _now.getFullYear();
