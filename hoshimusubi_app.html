@@ -160,6 +160,14 @@ button.sm.ok:hover{background:var(--ok-bg);}
       </select>
     </div>
     <div class="reg-products" id="rg-products"></div>
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">お香立て</div>
+      <div class="reg-products" id="rg-holder"></div>
+    </div>
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">サービス</div>
+      <div class="reg-products" id="rg-services"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -259,6 +267,12 @@ button.sm.ok:hover{background:var(--ok-bg);}
     <div class="card-title">完成品在庫（セット数）</div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">線香10本=1セット / 1gコーン10個=1セット / 2gコーン5個=1セット</p>
     <div id="stk-finished"></div>
+  </div>
+
+  <!-- お香立て在庫 -->
+  <div class="card">
+    <div class="card-title">お香立て在庫</div>
+    <div id="stk-holder"></div>
   </div>
 
   <!-- 予備在庫（端数） -->
@@ -404,6 +418,13 @@ button.sm.ok:hover{background:var(--ok-bg);}
     <button class="primary" style="margin-top:8px;" onclick="saveBasePrices()">価格を保存</button>
     <p id="price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
   </div>
+  <div class="card">
+    <div class="card-title">サービス価格</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">在庫管理不要のサービスの固定価格です。</p>
+    <div id="svc-prices"></div>
+    <button class="primary" style="margin-top:8px;" onclick="saveServicePrices()">価格を保存</button>
+    <p id="svc-price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
+  </div>
   <div class="card" style="margin-top:8px;">
     <div class="card-title">データ管理</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -503,6 +524,14 @@ function saveData(key, val) { localStorage.setItem('hoshimusubi_'+key, JSON.stri
 
 // セット換算定数：何本/個で1セット
 var SET_SIZE = {'線香':10, '1gコーン':10, '2gコーン':5};
+
+// お香立て在庫（個数）
+var holderStock = loadData('holderStock', 0);
+function getHolderStock() { return holderStock; }
+function setHolderStock(val) { holderStock = Math.max(0, val); saveData('holderStock', holderStock); }
+
+// サービス定義
+var SERVICES = ['心理テスト', 'オリジナル調香'];
 
 // 商品リスト（localStorage永続化、初回は初期値）
 var PRODUCTS = loadData('products', DEFAULT_PRODUCTS);
@@ -616,15 +645,60 @@ function renderRegister() {
     html += '</div>';
   });
   el.innerHTML = html;
+
+  // お香立てボタン
+  var holderEl = document.getElementById('rg-holder');
+  var holderPrice = getPrice('お香立て', '単品', eventId);
+  var holderStk = getHolderStock();
+  var holderDisabled = holderStk <= 0;
+  var hHtml = '<div class="reg-btn' + (holderDisabled?' disabled':'') + '" ' + (holderDisabled?'':'onclick="addToCart(\'お香立て\', \'単品\')"') + '>';
+  hHtml += '<div class="rb-name">お香立て</div>';
+  if (holderPrice > 0) {
+    hHtml += '<div class="rb-price">¥' + holderPrice.toLocaleString() + '</div>';
+  } else {
+    hHtml += '<div class="rb-price" style="color:#a03a2a;font-size:11px;">価格未設定</div>';
+  }
+  hHtml += '<div class="rb-stock">在庫 ' + holderStk + (holderDisabled?' (なし)':'') + '</div>';
+  hHtml += '</div>';
+  holderEl.innerHTML = hHtml;
+
+  // サービスボタン
+  var svcEl = document.getElementById('rg-services');
+  var sHtml = '';
+  SERVICES.forEach(function(svc) {
+    var svcPrice = getPrice(svc, 'サービス', '');
+    sHtml += '<div class="reg-btn" onclick="addToCart(\'' + svc + '\', \'サービス\')">';
+    sHtml += '<div class="rb-name">' + svc + '</div>';
+    if (svcPrice > 0) {
+      sHtml += '<div class="rb-price">¥' + svcPrice.toLocaleString() + '</div>';
+    } else {
+      sHtml += '<div class="rb-price" style="color:#a03a2a;font-size:11px;">価格未設定</div>';
+    }
+    sHtml += '</div>';
+  });
+  svcEl.innerHTML = sHtml;
+
   renderCart();
 }
 
-function addToCart(product) {
-  var form = document.getElementById('rg-form').value;
+function addToCart(product, formOverride) {
+  var form = formOverride || document.getElementById('rg-form').value;
   var ctx = getRegContext();
   var eventId = ctx === '_default' ? '' : ctx;
-  var price = getPrice(product, form, eventId);
-  if (form !== 'セット') {
+  // サービスは常に固定価格（eventId空）
+  var priceEventId = (form === 'サービス') ? '' : eventId;
+  var price = getPrice(product, form, priceEventId);
+  // お香立ての在庫チェック
+  if (form === '単品') {
+    var inCart = 0;
+    for (var i = 0; i < cart.length; i++) {
+      if (cart[i].product === product && cart[i].form === form) inCart = cart[i].qty;
+    }
+    if (inCart >= getHolderStock()) return;
+  }
+  // サービスは在庫チェックなし
+  // お香の在庫チェック（セット以外）
+  else if (form !== 'セット' && form !== 'サービス') {
     var inCart = 0;
     for (var i = 0; i < cart.length; i++) {
       if (cart[i].product === product && cart[i].form === form) inCart = cart[i].qty;
@@ -658,7 +732,8 @@ function getCartTotal() {
   var eventId = ctx === '_default' ? '' : ctx;
   var t = 0;
   for (var i = 0; i < cart.length; i++) {
-    t += getPrice(cart[i].product, cart[i].form, eventId) * cart[i].qty;
+    var eid = cart[i].form === 'サービス' ? '' : eventId;
+    t += getPrice(cart[i].product, cart[i].form, eid) * cart[i].qty;
   }
   return t;
 }
@@ -677,7 +752,8 @@ function renderCart() {
   var html = '';
   for (var i = 0; i < cart.length; i++) {
     var c = cart[i];
-    c.price = getPrice(c.product, c.form, eventId);
+    var eid = c.form === 'サービス' ? '' : eventId;
+    c.price = getPrice(c.product, c.form, eid);
     html += '<div class="cart-item">';
     html += '<span class="ci-name">' + c.product + '（' + c.form + '）</span>';
     html += '<div class="counter">';
@@ -727,7 +803,13 @@ function doCheckout() {
   for (i = 0; i < cart.length; i++) {
     c = cart[i];
     // 在庫を引く
-    if (c.form !== 'セット') {
+    if (c.form === '単品') {
+      // お香立ての在庫を引く
+      setHolderStock(getHolderStock() - c.qty);
+    } else if (c.form === 'サービス') {
+      // サービスは在庫引き不要
+    } else if (c.form !== 'セット') {
+      // お香の在庫を引く
       setStock(c.product, c.form, getStock(c.product, c.form) - c.qty);
     }
     // 販売記録を追加
@@ -801,7 +883,11 @@ function cancelSale(id) {
     if (sales[i].id === id && !sales[i].cancelled) {
       sales[i].cancelled = true;
       var s = sales[i];
-      if (s.form !== 'セット' && s.form !== 'その他') {
+      if (s.form === '単品') {
+        setHolderStock(getHolderStock() + s.qty);
+      } else if (s.form === 'サービス') {
+        // サービスは在庫戻し不要
+      } else if (s.form !== 'セット' && s.form !== 'その他') {
         setStock(s.product, s.form, getStock(s.product, s.form) + s.qty);
       }
       break;
@@ -1015,6 +1101,9 @@ function saveEventPrices(id) {
       if(inp && inp.value !== '') ep[key] = parseInt(inp.value) || 0;
     }
   }
+  // お香立てのイベント価格
+  var hInp = document.getElementById('ep-お香立て_単品-'+id);
+  if(hInp && hInp.value !== '') ep['お香立て_単品'] = parseInt(hInp.value) || 0;
   ev.prices = ep;
   saveData('events', events);
   renderEvents();
@@ -1142,6 +1231,13 @@ function renderEvents() {
       html += '</tr>';
     }
     html += '</table></div>';
+    // お香立てのイベント価格
+    var hkk = 'お香立て_単品';
+    html += '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;font-size:12px;">';
+    html += '<span style="font-weight:500;">お香立て</span>';
+    html += '<input type="number" id="ep-'+hkk+'-'+ev.id+'" value="'+(ep[hkk]||'')+'" min="0" placeholder="'+(basePrices[hkk]||0)+'" style="width:65px;font-size:11px;padding:3px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
+    html += '<span style="font-size:10px;color:var(--muted);">円</span>';
+    html += '</div>';
     html += '<button class="primary" style="margin-top:8px;" onclick="saveEventPrices(\'' + ev.id + '\')">この価格を保存</button>';
     html += '</div>';
 
@@ -1287,6 +1383,26 @@ function renderStock() {
     fHtml += '</div>';
   });
   fEl.innerHTML = fHtml;
+
+  // お香立て在庫
+  var hEl = document.getElementById('stk-holder');
+  var hHtml = '';
+  var hKey = 'お香立て_単品';
+  hHtml += '<div class="list-item">';
+  hHtml += '<div class="main"><div class="name">お香立て</div></div>';
+  hHtml += '<div style="display:flex;align-items:center;gap:8px;">';
+  hHtml += '<div class="counter">';
+  hHtml += '<button onclick="setHolderStock(getHolderStock()-1);renderStock();renderRegister();">−</button>';
+  hHtml += '<span class="cnt-val">' + getHolderStock() + '</span>';
+  hHtml += '<button onclick="setHolderStock(getHolderStock()+1);renderStock();renderRegister();">+</button>';
+  hHtml += '</div>';
+  hHtml += '<span style="font-size:11px;color:var(--muted);">個</span>';
+  hHtml += '</div>';
+  hHtml += '</div>';
+  hHtml += '<div class="list-item" style="padding:4px 10px;font-size:11px;color:var(--muted);border-top:none;margin-top:-4px;">';
+  hHtml += '価格: <input type="number" id="stk-price-' + hKey + '" value="' + (basePrices[hKey] || '') + '" min="0" placeholder="0" style="width:60px;font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;" oninput="updateBasePrice(\'' + hKey + '\', this.value)">';
+  hHtml += '</div>';
+  hEl.innerHTML = hHtml;
 
   // 予備在庫（端数）
   var sEl = document.getElementById('stk-spare');
@@ -1723,6 +1839,7 @@ function renderProducts() {
   });
   el.innerHTML = html;
   renderPrices();
+  renderServicePrices();
 }
 
 function renderPrices() {
@@ -1744,6 +1861,14 @@ function renderPrices() {
     html += '</tr>';
   });
   html += '</table></div>';
+  // お香立て価格行
+  var hKey = 'お香立て_単品';
+  html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">';
+  html += '<div style="display:flex;align-items:center;gap:8px;font-size:13px;">';
+  html += '<span style="font-weight:500;min-width:80px;">お香立て</span>';
+  html += '<input type="number" id="price-' + hKey + '" value="' + (basePrices[hKey]||'') + '" min="0" placeholder="0" style="width:80px;font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
+  html += '<span style="font-size:11px;color:var(--muted);">円</span>';
+  html += '</div></div>';
   el.innerHTML = html;
 }
 
@@ -1756,9 +1881,40 @@ function saveBasePrices() {
       if(inp && inp.value !== '') basePrices[key] = parseInt(inp.value) || 0;
     });
   });
+  // お香立て価格
+  var hInp = document.getElementById('price-お香立て_単品');
+  if(hInp && hInp.value !== '') basePrices['お香立て_単品'] = parseInt(hInp.value) || 0;
   saveData('basePrices', basePrices);
   renderRegister();
   var msg = document.getElementById('price-saved-msg');
+  msg.style.display = '';
+  setTimeout(function(){ msg.style.display = 'none'; }, 2000);
+}
+
+// ===== サービス価格 =====
+function renderServicePrices() {
+  var el = document.getElementById('svc-prices');
+  var html = '';
+  SERVICES.forEach(function(svc) {
+    var key = svc + '_サービス';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;">';
+    html += '<span style="font-weight:500;min-width:120px;">' + svc + '</span>';
+    html += '<input type="number" id="svcprice-' + key + '" value="' + (basePrices[key]||'') + '" min="0" placeholder="0" style="width:80px;font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
+    html += '<span style="font-size:11px;color:var(--muted);">円</span>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function saveServicePrices() {
+  SERVICES.forEach(function(svc) {
+    var key = svc + '_サービス';
+    var inp = document.getElementById('svcprice-' + key);
+    if(inp && inp.value !== '') basePrices[key] = parseInt(inp.value) || 0;
+  });
+  saveData('basePrices', basePrices);
+  renderRegister();
+  var msg = document.getElementById('svc-price-saved-msg');
   msg.style.display = '';
   setTimeout(function(){ msg.style.display = 'none'; }, 2000);
 }
@@ -1767,7 +1923,7 @@ function saveBasePrices() {
 function exportAllData() {
   var data = {
     products: PRODUCTS, stock: stock, spareStock: spareStock, basePrices: basePrices, sales: sales,
-    events: events, makeQueue: makeQueue, makeLog: makeLog, materials: materials,
+    events: events, makeQueue: makeQueue, makeLog: makeLog, materials: materials, holderStock: holderStock,
     exportDate: new Date().toISOString()
   };
   var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
@@ -1794,6 +1950,7 @@ function importAllData(event) {
       if (data.makeQueue) { makeQueue = data.makeQueue; saveData('makeQueue', makeQueue); }
       if (data.makeLog) { makeLog = data.makeLog; saveData('makeLog', makeLog); }
       if (data.materials) { materials = data.materials; saveData('materials', materials); }
+      if (data.holderStock !== undefined) { holderStock = data.holderStock; saveData('holderStock', holderStock); }
       initProductSelects();
       renderProducts();
       alert('インポートしました');
@@ -1807,7 +1964,7 @@ function resetAllData() {
   if (!confirm('全てのデータをリセットしますか？この操作は元に戻せません。')) return;
   if (!confirm('本当にリセットしますか？')) return;
   PRODUCTS = DEFAULT_PRODUCTS.slice();
-  stock = {}; spareStock = {}; basePrices = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = [];
+  stock = {}; spareStock = {}; basePrices = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = []; holderStock = 0;
   saveData('products', PRODUCTS);
   saveData('stock', stock);
   saveData('spareStock', spareStock);
@@ -1817,6 +1974,7 @@ function resetAllData() {
   saveData('makeQueue', makeQueue);
   saveData('makeLog', makeLog);
   saveData('materials', materials);
+  saveData('holderStock', holderStock);
   initProductSelects();
   renderProducts(); renderSales(); renderStock(); renderMaterials(); renderEvents();
   alert('リセットしました');
