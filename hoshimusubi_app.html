@@ -69,6 +69,13 @@ button.sm.ok:hover{background:var(--ok-bg);}
 
 .stock-num{font-size:18px;font-weight:700;color:var(--accent);}
 .stock-unit{font-size:11px;color:var(--muted);}
+.stock-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+.stock-summary .sum-box{background:var(--accent-light);border-radius:8px;padding:10px;text-align:center;}
+.stock-summary .sum-label{font-size:10px;color:var(--muted);font-weight:700;}
+.stock-summary .sum-value{font-size:20px;color:var(--accent);font-weight:700;margin-top:2px;}
+.material-line{font-size:11px;color:var(--accent);margin-top:3px;line-height:1.45;}
+.recipe-preview{font-size:12px;background:var(--accent-light);border-radius:8px;padding:10px;line-height:1.7;margin-top:8px;}
+.recipe-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:8px;}
 
 .empty-msg{text-align:center;color:var(--muted);font-size:13px;padding:20px 0;}
 
@@ -125,8 +132,30 @@ button.sm.ok:hover{background:var(--ok-bg);}
 .change-display .ch-label{font-size:11px;color:var(--muted);}
 .change-display .ch-amount{font-size:22px;font-weight:700;color:var(--ok);}
 
-@media(max-width:400px){
+@media(max-width:600px){
+  body{padding-bottom:118px;}
+  .header{padding:12px 12px 9px;position:sticky;top:0;z-index:90;}
+  .panel{padding:10px 8px;}
+  .card{border-radius:8px;padding:12px 10px;margin-bottom:10px;}
+  .grid2,.grid3{grid-template-columns:1fr;gap:8px;}
+  .field input,.field select,.field textarea{font-size:16px;padding:10px;}
+  button.primary{min-height:44px;}
+  button.sm{min-height:34px;padding:6px 10px;}
+  .tab-bar{flex-wrap:wrap;overflow-x:visible;justify-content:flex-start;}
+  .tab-btn{flex:1 0 20%;min-width:0;padding:7px 0 5px;}
+  .tab-btn .icon{font-size:17px;}
+  .reg-products{grid-template-columns:1fr;gap:7px;}
+  .reg-btn{text-align:left;min-height:68px;padding:12px 12px;}
+  .reg-btn .rb-name{font-size:15px;}
+  .list-item{align-items:flex-start;flex-wrap:wrap;}
+  .list-item .actions{width:100%;justify-content:flex-end;flex-wrap:wrap;}
+  .cart-item{flex-wrap:wrap;}
+  .cart-item .ci-name{flex-basis:100%;}
+  .mat-header{align-items:flex-start;gap:8px;}
+  .mat-header .actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
   .grid3{grid-template-columns:1fr 1fr;}
+  .stock-summary{grid-template-columns:1fr 1fr;}
+  .recipe-grid{grid-template-columns:1fr;}
 }
 
 /* 領収書モーダル */
@@ -172,15 +201,27 @@ button.sm.ok:hover{background:var(--ok-bg);}
   </div>
   <div class="card">
     <div class="card-title">商品を選択</div>
-    <div class="field" style="margin-bottom:8px;">
+    <div class="field">
+      <label>先に形状を選択</label>
       <select id="rg-form" onchange="renderRegister()">
         <option value="線香">線香</option>
         <option value="1gコーン">1gコーン</option>
         <option value="2gコーン">2gコーン</option>
-        <option value="セット">セット</option>
       </select>
     </div>
-    <div class="reg-products" id="rg-products"></div>
+    <div class="field"><label>単品商品（在庫ありのみ）</label><select id="rg-product" onchange="renderRegister()"></select></div>
+    <div id="rg-product-info" class="recipe-preview" style="margin-top:0;"></div>
+    <button class="primary" id="rg-add-product-btn" style="margin-top:10px;" onclick="addSelectedProductToCart()">カートに追加</button>
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">選べる3種セット</div>
+      <div class="field"><label>価格</label><div id="rg-set-price" class="recipe-preview" style="margin:0;"></div></div>
+      <div class="grid3">
+        <div class="field"><label>1つ目</label><select id="rg-set-1"></select></div>
+        <div class="field"><label>2つ目</label><select id="rg-set-2"></select></div>
+        <div class="field"><label>3つ目</label><select id="rg-set-3"></select></div>
+      </div>
+      <button class="primary" id="rg-add-set-btn" onclick="addSelectableSetToCart()">3種セットをカートに追加</button>
+    </div>
     <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
       <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">お香立て</div>
       <div class="reg-products" id="rg-holder"></div>
@@ -203,15 +244,15 @@ button.sm.ok:hover{background:var(--ok-bg);}
     <div class="card-title">お会計</div>
     <div class="grid2">
       <div class="field"><label>決済方法</label>
-        <select id="rg-pay">
+        <select id="rg-pay" onchange="toggleReceivedField()">
           <option value="現金">現金</option>
           <option value="PayPay">PayPay</option>
           <option value="カード">カード</option>
           <option value="その他">その他</option>
         </select>
       </div>
-      <div class="field"><label>受取金額（現金時）</label>
-        <input type="number" id="rg-received" value="" placeholder="0" oninput="calcChange()">
+      <div class="field" id="rg-received-field"><label>お預かり金額</label>
+        <input type="number" id="rg-received" value="" placeholder="現金の時だけ入力" oninput="calcChange()">
       </div>
     </div>
     <div class="change-display" id="rg-change-box" style="display:none;">
@@ -281,7 +322,7 @@ button.sm.ok:hover{background:var(--ok-bg);}
   </div>
 </div>
 
-<!-- ===== 在庫・製造タブ ===== -->
+<!-- ===== 在庫タブ ===== -->
 <div class="panel" id="panel-stock">
   <!-- 完成品在庫（セット数） -->
   <div class="card">
@@ -302,11 +343,39 @@ button.sm.ok:hover{background:var(--ok-bg);}
     <div id="stk-spare"></div>
   </div>
 
+  <div id="mat-alert"></div>
+  <div class="card">
+    <div class="card-title">香原料一覧</div>
+    <div id="mat-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">香原料を追加</div>
+    <div class="field"><label>原料名</label><input type="text" id="mat-name" placeholder="例：白檀"></div>
+    <div class="grid3">
+      <div class="field"><label>未開封（袋数）</label><input type="number" id="mat-unopened" value="0" min="0"></div>
+      <div class="field"><label>使用中</label>
+        <select id="mat-level">
+          <option value="plenty">多</option>
+          <option value="medium">中</option>
+          <option value="low">少</option>
+          <option value="critical">切れそう</option>
+        </select>
+      </div>
+      <div class="field"><label>瓶（WS用）</label><input type="number" id="mat-bottles" value="0" min="0"></div>
+    </div>
+    <div class="field"><label>メモ（任意）</label><input type="text" id="mat-memo" placeholder=""></div>
+    <button class="primary" onclick="addMaterial()">追加する</button>
+  </div>
+
+</div>
+
+<!-- ===== 製造タブ ===== -->
+<div class="panel" id="panel-make">
   <!-- 製造開始 -->
   <div class="card">
     <div class="card-title">製造を開始する</div>
     <div class="grid2">
-      <div class="field"><label>商品</label><select id="mk-product"></select></div>
+      <div class="field"><label>商品</label><select id="mk-product" onchange="loadMakeRecipeView()"></select></div>
       <div class="field"><label>形状</label>
         <select id="mk-form">
           <option value="線香">線香</option>
@@ -315,6 +384,10 @@ button.sm.ok:hover{background:var(--ok-bg);}
         </select>
       </div>
     </div>
+    <div class="field"><label>今回作る総量（g）</label>
+      <input type="number" id="mk-total" value="10" min="0" step="0.1" oninput="loadMakeRecipeView()">
+    </div>
+    <div id="mk-recipe-preview" class="recipe-preview"></div>
     <div class="field"><label>製造数量（本数・個数）</label>
       <input type="number" id="mk-qty" value="20" min="1">
     </div>
@@ -343,14 +416,14 @@ button.sm.ok:hover{background:var(--ok-bg);}
   </div>
 
   <!-- 製造ログ -->
-  <div class="card">
-    <div class="card-title">製造ログ（原価計算用）</div>
-    <div id="mk-log"></div>
-  </div>
+  <details class="card" style="padding:0;overflow:hidden;">
+    <summary style="list-style:none;padding:12px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;">製造ログ（必要な時だけ確認）</summary>
+    <div id="mk-log" style="padding:0 14px 12px;"></div>
+  </details>
 </div>
 
-<!-- ===== イベント管理タブ ===== -->
-<div class="panel" id="panel-events">
+<!-- ===== イベント管理 ===== -->
+<div id="report-events" style="display:none;">
   <div class="card">
     <div class="card-title">イベントを登録</div>
     <div class="grid2">
@@ -388,6 +461,7 @@ button.sm.ok:hover{background:var(--ok-bg);}
 
 <!-- ===== レポートタブ ===== -->
 <div class="panel" id="panel-report">
+  <div id="report-events-slot"></div>
   <div class="card">
     <div class="card-title">月選択</div>
     <div class="grid2">
@@ -399,71 +473,33 @@ button.sm.ok:hover{background:var(--ok-bg);}
   <div id="rp-content"></div>
 </div>
 
-<!-- ===== 香原料タブ ===== -->
-<div class="panel" id="panel-materials">
-  <div id="mat-alert"></div>
+<!-- ===== 商品タブ ===== -->
+<div class="panel" id="panel-products">
   <div class="card">
-    <div class="card-title">香原料一覧</div>
-    <div id="mat-list"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">香原料を追加</div>
-    <div class="field"><label>原料名</label><input type="text" id="mat-name" placeholder="例：白檀"></div>
-    <div class="grid3">
-      <div class="field"><label>未開封（袋数）</label><input type="number" id="mat-unopened" value="0" min="0"></div>
-      <div class="field"><label>使用中</label>
-        <select id="mat-level">
-          <option value="plenty">多</option>
-          <option value="medium">中</option>
-          <option value="low">少</option>
-          <option value="critical">切れそう</option>
-        </select>
-      </div>
-      <div class="field"><label>瓶（WS用）</label><input type="number" id="mat-bottles" value="0" min="0"></div>
+    <div class="card-title">商品素材・レシピ入力</div>
+    <div class="grid2">
+      <div class="field"><label>商品名</label><input type="text" id="rcp-product-name" placeholder="例：沈香"></div>
+      <div class="field"><label>登録済み商品を編集</label><select id="rcp-product" onchange="loadRecipeForm()"></select></div>
+      <div class="field"><label>作りたい総量（g）</label><input type="number" id="rcp-total" value="10" min="0" step="0.1" oninput="updateRecipePreview()"></div>
     </div>
-    <div class="field"><label>メモ（任意）</label><input type="text" id="mat-memo" placeholder=""></div>
-    <button class="primary" onclick="addMaterial()">追加する</button>
+    <div class="recipe-grid">
+      <div class="field"><label>素材（1行ずつ）</label><textarea id="rcp-materials" rows="5" placeholder="白檀&#10;丁子&#10;タブ粉" oninput="updateRecipePreview()"></textarea></div>
+      <div class="field"><label>配合量（g・1行ずつ）</label><textarea id="rcp-grams" rows="5" placeholder="3.5&#10;3.5&#10;3.0" oninput="updateRecipePreview()"></textarea></div>
+    </div>
+    <div class="field"><label>香り・製造メモ</label><textarea id="rcp-memo" rows="3" placeholder="甘さ、煙の立ち方、次回調整など" oninput="updateRecipePreview()"></textarea></div>
+    <div id="rcp-preview" class="recipe-preview"></div>
+    <button class="primary" style="margin-top:10px;" onclick="saveRecipeForm()">素材・レシピを保存</button>
   </div>
-</div>
-
-<!-- ===== 設定タブ ===== -->
-<div class="panel" id="panel-settings">
+  <details class="card" style="padding:0;overflow:hidden;">
+    <summary style="list-style:none;padding:12px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;">商品一覧・並び替え</summary>
+    <div id="prd-list" style="padding:0 14px 12px;"></div>
+  </details>
   <div class="card">
-    <div class="card-title">商品マスター</div>
-    <div id="prd-list"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">商品を追加</div>
-    <div class="field"><label>商品名</label><input type="text" id="prd-name" placeholder="例：沈香"></div>
-    <button class="primary" onclick="addProduct()">追加する</button>
-  </div>
-  <div class="card">
-    <div class="card-title">EC販売価格</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">オンライン販売（BASE等）用の価格です。未設定の場合は通常価格が使われます。</p>
-    <div id="ec-prices"></div>
-    <button class="primary" style="margin-top:8px;" onclick="saveEcPrices()">EC価格を保存</button>
-    <p id="ec-price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
-  </div>
-  <div class="card">
-    <div class="card-title">直販価格</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">直接販売用の価格です。未設定の場合は通常価格が使われます。</p>
-    <div id="direct-prices"></div>
-    <button class="primary" style="margin-top:8px;" onclick="saveDirectPrices()">直販価格を保存</button>
-    <p id="direct-price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
-  </div>
-  <div class="card">
-    <div class="card-title">通常価格（ベース）</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">他の価格が未設定の場合に使われるデフォルト価格です。</p>
-    <div id="prd-prices"></div>
-    <button class="primary" style="margin-top:8px;" onclick="saveBasePrices()">通常価格を保存</button>
-    <p id="price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
-  </div>
-  <div class="card">
-    <div class="card-title">サービス価格</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">在庫管理不要のサービスの固定価格です。</p>
-    <div id="svc-prices"></div>
-    <button class="primary" style="margin-top:8px;" onclick="saveServicePrices()">価格を保存</button>
-    <p id="svc-price-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
+    <div class="card-title">販売価格まとめ</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">通常価格を基本に、必要なものだけ直販・EC価格を入れます。空欄の直販/ECは通常価格が使われます。</p>
+    <div id="price-overview"></div>
+    <button class="primary" style="margin-top:8px;" onclick="savePriceOverview()">販売価格を保存</button>
+    <p id="price-overview-saved-msg" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;">保存しました</p>
   </div>
   <div class="card">
     <div class="card-title">領収書ロゴ</div>
@@ -509,23 +545,17 @@ button.sm.ok:hover{background:var(--ok-bg);}
   <button class="tab-btn active" onclick="switchTab('register')" data-tab="register">
     <span class="icon">🛒</span>レジ
   </button>
-  <button class="tab-btn" onclick="switchTab('sales')" data-tab="sales">
-    <span class="icon">📋</span>販売
-  </button>
   <button class="tab-btn" onclick="switchTab('stock')" data-tab="stock">
-    <span class="icon">📦</span>在庫製造
+    <span class="icon">📦</span>在庫
   </button>
-  <button class="tab-btn" onclick="switchTab('events')" data-tab="events">
-    <span class="icon">🎪</span>イベント
+  <button class="tab-btn" onclick="switchTab('make')" data-tab="make">
+    <span class="icon">🧪</span>製造
+  </button>
+  <button class="tab-btn" onclick="switchTab('products')" data-tab="products">
+    <span class="icon">🏷</span>商品
   </button>
   <button class="tab-btn" onclick="switchTab('report')" data-tab="report">
     <span class="icon">📊</span>レポート
-  </button>
-  <button class="tab-btn" onclick="switchTab('materials')" data-tab="materials">
-    <span class="icon">🌿</span>香原料
-  </button>
-  <button class="tab-btn" onclick="switchTab('settings')" data-tab="settings">
-    <span class="icon">⚙</span>設定
   </button>
 </div>
 
@@ -599,10 +629,13 @@ function getHolderStock() { return holderStock; }
 function setHolderStock(val) { holderStock = Math.max(0, val); saveData('holderStock', holderStock); }
 
 // サービス定義
-var SERVICES = ['心理テスト', 'オリジナル調香'];
+var SERVICES = ['心理テスト', 'オリジナル調香', 'ワークショップ'];
+var SELECTABLE_SET_NAME = '選べる3種セット';
 
 // 商品リスト（localStorage永続化、初回は初期値）
 var PRODUCTS = loadData('products', DEFAULT_PRODUCTS);
+// 商品ごとの素材・配合メモ: { "深澄": {materials:["白檀"], grams:[3.5], memo:""} }
+var productRecipes = loadData('productRecipes', {});
 // 完成品在庫（セット数）: { "深澄_線香": 2, ... }
 var stock = loadData('stock', {});
 // 予備在庫（端数・本数/個数）: { "深澄_線香": 3, ... }
@@ -630,6 +663,36 @@ var basePrices = loadData('basePrices', {});
 var ecPrices = loadData('ecPrices', {});
 // 直販価格（直接販売用）
 var directPrices = loadData('directPrices', {});
+// 商品別原価（1点あたり）: { "深澄_線香": 120, ... }
+var productCosts = loadData('productCosts', {});
+var DEFAULT_PRODUCT_COSTS = {
+  '新月の雫': 1770,
+  '日輪': 196,
+  '白露': 160,
+  '温火': 111,
+  '朝霧': 135,
+  '金花': 189,
+  '華の舞': 187,
+  '一灯': 160,
+  'hakuブレンド': 193,
+  '木霊': 166,
+  '柚香': 146,
+  '和草': 687
+};
+(function seedDefaultProductCosts(){
+  var changed = false;
+  Object.keys(DEFAULT_PRODUCT_COSTS).forEach(function(product) {
+    FORMS.forEach(function(form) {
+      var key = product + '_' + form;
+      var oldAutoCost = DEFAULT_PRODUCT_COSTS[product] + 500;
+      if (productCosts[key] === undefined || productCosts[key] === oldAutoCost) {
+        productCosts[key] = DEFAULT_PRODUCT_COSTS[product];
+        changed = true;
+      }
+    });
+  });
+  if (changed) saveData('productCosts', productCosts);
+})();
 // イベント別価格はevent.pricesに格納: { "深澄_線香": 1200, ... }
 // レジカート
 var cart = [];
@@ -645,6 +708,21 @@ function setStock(product, form, val) { stock[stockKey(product, form)] = Math.ma
 function getSpare(product, form) { return spareStock[stockKey(product, form)] || 0; }
 function setSpare(product, form, val) { spareStock[stockKey(product, form)] = Math.max(0, val); saveData('spareStock', spareStock); }
 function updateBasePrice(key, value) { basePrices[key] = parseInt(value) || 0; saveData('basePrices', basePrices); }
+function getProductRecipe(product) { return productRecipes[product] || {materials:[], ratios:[], memo:''}; }
+function getMaterialText(product) {
+  var r = getProductRecipe(product);
+  return (r.materials || []).filter(Boolean).join(' / ');
+}
+function recipeMaterialLine(product) {
+  var txt = getMaterialText(product);
+  return txt ? '<div class="material-line">素材: ' + txt + '</div>' : '';
+}
+function splitRecipeLines(value) {
+  return (value || '').split(/\n|、|,/).map(function(v){ return v.trim(); }).filter(Boolean);
+}
+function parseRecipeAmounts(value) {
+  return splitRecipeLines(value).map(function(v){ return parseFloat(v.replace('%','')) || 0; });
+}
 
 // ===== タブ切替 =====
 function switchTab(id) {
@@ -654,24 +732,33 @@ function switchTab(id) {
   var btn = document.querySelector('.tab-btn[data-tab="'+id+'"]');
   if (btn) btn.classList.add('active');
   if (id === 'register') { updateRegContextSelect(); renderRegister(); }
-  if (id === 'stock') renderStock();
-  if (id === 'materials') renderMaterials();
+  if (id === 'stock') { renderStock(); renderMaterials(); }
+  if (id === 'make') { renderMakeQueue(); renderMakeLog(); loadMakeRecipeView(); }
   if (id === 'sales') { renderSales(); onChannelChange(); }
   if (id === 'events') renderEvents();
-  if (id === 'report') renderReport();
-  if (id === 'settings') renderProducts();
+  if (id === 'report') { ensureReportEvents(); renderEvents(); renderReport(); }
+  if (id === 'products') renderProducts();
+}
+
+function ensureReportEvents() {
+  var slot = document.getElementById('report-events-slot');
+  var eventsBlock = document.getElementById('report-events');
+  if (slot && eventsBlock && eventsBlock.parentNode !== slot) slot.appendChild(eventsBlock);
+  if (eventsBlock) eventsBlock.style.display = '';
 }
 
 // ===== 商品セレクト初期化 =====
 function initProductSelects() {
-  ['sl-product','mk-product'].forEach(function(sid) {
+  ['sl-product','mk-product','rcp-product','rg-product'].forEach(function(sid) {
     var sel = document.getElementById(sid);
+    if (!sel) return;
     sel.innerHTML = '';
     PRODUCTS.forEach(function(p) {
       var o = document.createElement('option'); o.value = p; o.textContent = p;
       sel.appendChild(o);
     });
   });
+  loadRecipeForm();
 }
 
 // ===== レジ =====
@@ -717,24 +804,30 @@ function updateRegContextSelect() {
 function renderRegister() {
   var form = document.getElementById('rg-form').value;
   var ctx = getRegContext();
-  var el = document.getElementById('rg-products');
-  var html = '';
-  PRODUCTS.forEach(function(p) {
-    var stk = (form === 'セット') ? 99 : getStock(p, form);
-    var price = getPrice(p, form, ctx);
-    var noStock = stk <= 0;
-    var disabled = noStock;
-    html += '<div class="reg-btn' + (disabled?' disabled':'') + '" ' + (disabled?'':'onclick="addToCart(\''+p+'\')"') + '>';
-    html += '<div class="rb-name">' + p + '</div>';
-    if (price > 0) {
-      html += '<div class="rb-price">¥' + price.toLocaleString() + '</div>';
-    } else {
-      html += '<div class="rb-price" style="color:#a03a2a;font-size:11px;">価格未設定</div>';
-    }
-    if (form !== 'セット') html += '<div class="rb-stock">在庫 ' + stk + (noStock?' (なし)':'') + '</div>';
-    html += '</div>';
-  });
-  el.innerHTML = html;
+  var productSel = document.getElementById('rg-product');
+  var currentProduct = productSel.value;
+  var sellableProducts = PRODUCTS.filter(function(p){ return form === 'セット' || getStock(p, form) > 0; });
+  if (!sellableProducts.length) sellableProducts = PRODUCTS.slice();
+  productSel.innerHTML = sellableProducts.map(function(p){
+    var stockText = form === 'セット' ? '' : '（在庫' + getStock(p, form) + '）';
+    return '<option value="' + p + '">' + p + stockText + '</option>';
+  }).join('');
+  if (sellableProducts.indexOf(currentProduct) >= 0) productSel.value = currentProduct;
+  var product = productSel.value || sellableProducts[0] || '';
+  var infoEl = document.getElementById('rg-product-info');
+  var addBtn = document.getElementById('rg-add-product-btn');
+  var stk = getStock(product, form);
+  var price = getPrice(product, form, ctx);
+  var noStock = stk <= 0;
+  var info = '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">';
+  info += '<div><strong>' + product + '（' + form + '）</strong>' + recipeMaterialLine(product) + '</div>';
+  info += '<div style="text-align:right;">';
+  info += price > 0 ? '<strong style="color:var(--accent);">¥' + price.toLocaleString() + '</strong>' : '<strong style="color:var(--danger);font-size:12px;">価格未設定</strong>';
+  info += '<div class="detail">在庫 ' + stk + (noStock ? ' (なし)' : '') + '</div>';
+  info += '</div></div>';
+  infoEl.innerHTML = info;
+  addBtn.disabled = noStock || !product;
+  renderSelectableSetPicker(ctx);
 
   // お香立てボタン
   var holderEl = document.getElementById('rg-holder');
@@ -771,6 +864,54 @@ function renderRegister() {
   renderCart();
 }
 
+function renderSelectableSetPicker(ctx) {
+  var form = document.getElementById('rg-form').value;
+  var setProducts = PRODUCTS.slice();
+  var optionHtml = setProducts.map(function(p){
+    return '<option value="' + p + '">' + p + '</option>';
+  }).join('');
+  ['rg-set-1','rg-set-2','rg-set-3'].forEach(function(id, idx) {
+    var sel = document.getElementById(id);
+    var cur = sel.value;
+    sel.innerHTML = optionHtml;
+    sel.disabled = !setProducts.length;
+    if (setProducts.indexOf(cur) >= 0) sel.value = cur;
+    else if (setProducts[idx]) sel.value = setProducts[idx];
+  });
+  var price = getPrice(SELECTABLE_SET_NAME, 'セット', ctx);
+  document.getElementById('rg-set-price').innerHTML = price > 0
+    ? '<strong style="color:var(--accent);">¥' + price.toLocaleString() + '</strong>'
+    : '<strong style="color:var(--danger);font-size:12px;">価格未設定</strong>';
+  document.getElementById('rg-add-set-btn').disabled = setProducts.length < 3;
+}
+
+function addSelectedProductToCart() {
+  var product = document.getElementById('rg-product').value;
+  if (!product) return;
+  addToCart(product);
+}
+
+function getSelectableSetComponents() {
+  var form = document.getElementById('rg-form').value;
+  return ['rg-set-1','rg-set-2','rg-set-3'].map(function(id) {
+    return {product: document.getElementById(id).value, form: form};
+  }).filter(function(c){ return c.product; });
+}
+
+function canAddSelectableSet(components, qty) {
+  return components.length === 3;
+}
+
+function addSelectableSetToCart() {
+  var ctx = getRegContext();
+  var components = getSelectableSetComponents();
+  if (components.length !== 3) { alert('3種類を選んでください'); return; }
+  var price = getPrice(SELECTABLE_SET_NAME, 'セット', ctx);
+  cart.push({product:SELECTABLE_SET_NAME, form:'セット', qty:1, price:price, components:components});
+  renderCart();
+  renderRegister();
+}
+
 function addToCart(product, formOverride) {
   var form = formOverride || document.getElementById('rg-form').value;
   var ctx = getRegContext();
@@ -804,6 +945,7 @@ function addToCart(product, formOverride) {
 }
 
 function cartQty(idx, delta) {
+  if (delta > 0 && cart[idx].components && !canAddSelectableSet(cart[idx].components, 1)) return;
   cart[idx].qty += delta;
   if (cart[idx].qty <= 0) cart.splice(idx, 1);
   renderCart();
@@ -817,13 +959,16 @@ function removeCartItem(idx) {
 }
 
 function getCartTotal() {
-  var ctx = getRegContext();
   var t = 0;
   for (var i = 0; i < cart.length; i++) {
-    var pCtx = cart[i].form === 'サービス' ? '_default' : ctx;
-    t += getPrice(cart[i].product, cart[i].form, pCtx) * cart[i].qty;
+    t += (cart[i].price || 0) * cart[i].qty;
   }
   return t;
+}
+
+function updateCartPrice(idx, value) {
+  cart[idx].price = Math.max(0, parseInt(value) || 0);
+  renderCart();
 }
 
 function renderCart() {
@@ -839,16 +984,15 @@ function renderCart() {
   var html = '';
   for (var i = 0; i < cart.length; i++) {
     var c = cart[i];
-    var pCtx = c.form === 'サービス' ? '_default' : ctx;
-    c.price = getPrice(c.product, c.form, pCtx);
     html += '<div class="cart-item">';
-    html += '<span class="ci-name">' + c.product + '（' + c.form + '）</span>';
+    var compText = c.components ? '<div class="detail">' + c.components.map(function(x){ return x.product; }).join(' / ') + '</div>' : '';
+    html += '<span class="ci-name">' + c.product + '（' + c.form + '）' + compText + '</span>';
     html += '<div class="counter">';
     html += '<button onclick="cartQty('+i+',-1)">−</button>';
     html += '<span class="cnt-val">' + c.qty + '</span>';
     html += '<button onclick="cartQty('+i+',1)">+</button>';
     html += '</div>';
-    html += '<span class="ci-price">¥' + (c.price * c.qty).toLocaleString() + '</span>';
+    html += '<span class="ci-price"><input type="number" value="' + (c.price || 0) + '" min="0" onchange="updateCartPrice('+i+', this.value)" style="width:76px;font-size:13px;padding:5px;border:1px solid var(--border);border-radius:4px;text-align:right;">円</span>';
     html += '<button class="sm danger" style="padding:3px 8px;" onclick="removeCartItem('+i+')">×</button>';
     html += '</div>';
   }
@@ -862,12 +1006,19 @@ function calcChange() {
   var total = getCartTotal();
   var received = parseInt(document.getElementById('rg-received').value) || 0;
   var box = document.getElementById('rg-change-box');
-  if (received > 0 && received >= total) {
+  if (document.getElementById('rg-pay').value === '現金' && received > 0 && received >= total) {
     box.style.display = '';
     document.getElementById('rg-change').textContent = '¥' + (received - total).toLocaleString();
   } else {
     box.style.display = 'none';
   }
+}
+
+function toggleReceivedField() {
+  var isCash = document.getElementById('rg-pay').value === '現金';
+  document.getElementById('rg-received-field').style.display = isCash ? '' : 'none';
+  if (!isCash) document.getElementById('rg-received').value = '';
+  calcChange();
 }
 
 function doCheckout() {
@@ -905,6 +1056,8 @@ function doCheckout() {
       setHolderStock(getHolderStock() - c.qty);
     } else if (c.form === 'サービス') {
       // サービスは在庫引き不要
+    } else if (c.components) {
+      // 選べる3種セットは一旦在庫計算しない
     } else if (c.form !== 'セット') {
       // お香の在庫を引く
       setStock(c.product, c.form, getStock(c.product, c.form) - c.qty);
@@ -918,7 +1071,8 @@ function doCheckout() {
       channel: channel,
       qty: c.qty,
       amount: c.price * c.qty,
-      memo: payMethod,
+      memo: c.components ? payMethod + ' / ' + c.components.map(function(x){ return x.product; }).join('・') : payMethod,
+      components: c.components || null,
       cancelled: false,
       eventId: eventId
     });
@@ -927,7 +1081,7 @@ function doCheckout() {
 
   // 領収書用にカートデータを保持
   lastCheckoutData = {
-    items: cart.map(function(c){ return {product:c.product, form:c.form, qty:c.qty, price:c.price}; }),
+    items: cart.map(function(c){ return {product:c.product, form:c.form, qty:c.qty, price:c.price, components:c.components}; }),
     total: total,
     payMethod: payMethod,
     date: now
@@ -995,6 +1149,8 @@ function cancelSale(id) {
         setHolderStock(getHolderStock() + s.qty);
       } else if (s.form === 'サービス') {
         // サービスは在庫戻し不要
+      } else if (s.components) {
+        // 選べる3種セットは一旦在庫戻ししない
       } else if (s.form !== 'セット' && s.form !== 'その他') {
         setStock(s.product, s.form, getStock(s.product, s.form) + s.qty);
       }
@@ -1400,7 +1556,30 @@ function renderReport() {
     manualSalesTotal += getManualTotal(ev);
   });
   var totalSales = linkedSalesTotal + manualSalesTotal;
-  var profit = totalSales - totalCost;
+  var totalProductCost = 0;
+  monthSales.forEach(function(s) {
+    if (s.cancelled || s.form === 'サービス') return;
+    if (s.components && s.components.length) {
+      s.components.forEach(function(part) {
+        totalProductCost += (productCosts[stockKey(part.product, part.form)] || 0) * (s.qty || 1);
+      });
+    } else {
+      totalProductCost += (productCosts[stockKey(s.product, s.form)] || 0) * (s.qty || 1);
+    }
+  });
+  var profit = totalSales - totalCost - totalProductCost;
+  var saleCount = monthSales.reduce(function(sum, s){ return sum + (s.qty || 1); }, 0);
+  var avgSale = monthSales.length ? Math.round(linkedSalesTotal / monthSales.length) : 0;
+  var profitRate = totalSales > 0 ? Math.round(profit / totalSales * 100) : 0;
+  var productTotals = {};
+  monthSales.forEach(function(s) {
+    if (s.form === 'サービス') return;
+    var key = s.product || '未設定';
+    if (!productTotals[key]) productTotals[key] = {amount:0, qty:0};
+    productTotals[key].amount += (s.amount || 0);
+    productTotals[key].qty += (s.qty || 1);
+  });
+  var topProduct = Object.keys(productTotals).sort(function(a,b){ return productTotals[b].amount - productTotals[a].amount; })[0] || '';
 
   var html = '';
 
@@ -1412,12 +1591,26 @@ function renderReport() {
   html += '<div style="font-size:10px;color:var(--muted);">売上合計</div>';
   html += '<div style="font-size:18px;font-weight:700;color:var(--accent);">¥' + totalSales.toLocaleString() + '</div></div>';
   html += '<div style="text-align:center;padding:10px 6px;background:var(--warn-bg);border-radius:8px;">';
-  html += '<div style="font-size:10px;color:var(--muted);">経費合計</div>';
-  html += '<div style="font-size:18px;font-weight:700;color:var(--warn);">¥' + totalCost.toLocaleString() + '</div></div>';
+  html += '<div style="font-size:10px;color:var(--muted);">原価+経費</div>';
+  html += '<div style="font-size:18px;font-weight:700;color:var(--warn);">¥' + (totalProductCost + totalCost).toLocaleString() + '</div></div>';
   html += '<div style="text-align:center;padding:10px 6px;background:' + (profit>=0?'var(--ok-bg)':'var(--danger-bg)') + ';border-radius:8px;">';
   html += '<div style="font-size:10px;color:var(--muted);">純利益</div>';
   html += '<div style="font-size:18px;font-weight:700;color:' + (profit>=0?'var(--ok)':'var(--danger)') + ';">¥' + profit.toLocaleString() + '</div></div>';
   html += '</div></div>';
+
+  html += '<div class="card">';
+  html += '<div class="card-title">分析メモ</div>';
+  var notes = [];
+  if (totalSales <= 0) {
+    notes.push('この月は売上記録がまだありません。レジやイベント売上を入れると分析が出ます。');
+  } else {
+    notes.push('原価¥' + totalProductCost.toLocaleString() + '、イベント等の経費¥' + totalCost.toLocaleString() + 'を引いた利益率は ' + profitRate + '% です。' + (profitRate >= 50 ? 'かなり良い月です。' : profitRate >= 20 ? '経費とのバランスはまずまずです。' : '原価か出店経費に対して売上が弱めです。'));
+    if (topProduct) notes.push('売上トップは「' + topProduct + '」で、¥' + productTotals[topProduct].amount.toLocaleString() + ' / ' + productTotals[topProduct].qty + '点です。');
+    if (avgSale > 0) notes.push('販売記録1件あたりの平均は約¥' + avgSale.toLocaleString() + 'です。セット販売や香立て追加で客単価を上げられる余地を見ます。');
+    if (monthEvents.length && profit < 0) notes.push('イベント経費込みでは赤字です。次回は必要売上ラインを先に決めると判断しやすいです。');
+  }
+  notes.forEach(function(n){ html += '<div style="font-size:13px;line-height:1.7;padding:4px 0;border-bottom:1px solid #f0f0ee;">' + n + '</div>'; });
+  html += '</div>';
 
   // 売上をカテゴリに分類するヘルパー
   function categorizeSales(salesList) {
@@ -1555,7 +1748,7 @@ function renderReport() {
       html += '<div class="list-item" style="padding:8px 0;">';
       html += '<div class="main">';
       html += '<div class="name" style="font-size:13px;">' + ev.name + ' <span class="badge" style="font-size:10px;' + (PAYMENT_STYLES[pay]||'') + '">' + (PAYMENT_LABELS[pay]||'') + '</span></div>';
-      html += '<div class="detail">売上¥' + evTotal.toLocaleString() + ' − 経費¥' + evCost.toLocaleString() + '</div>';
+      html += '<div class="detail">売上¥' + evTotal.toLocaleString() + ' − 経費¥' + evCost.toLocaleString() + '（原価は月サマリーに反映）</div>';
       html += '</div>';
       html += '<div style="text-align:right;"><span style="font-size:15px;font-weight:700;color:' + (evProfit>=0?'var(--ok)':'var(--danger)') + ';">¥' + evProfit.toLocaleString() + '</span></div>';
       html += '</div>';
@@ -1575,6 +1768,20 @@ function renderStock() {
   // 完成品在庫（セット数）
   var fEl = document.getElementById('stk-finished');
   var fHtml = '';
+  var totalSetsAll = 0;
+  var totalSparePieces = 0;
+  PRODUCTS.forEach(function(p) {
+    FORMS.forEach(function(f) {
+      var sets = getStock(p, f);
+      var spare = getSpare(p, f);
+      totalSetsAll += sets;
+      totalSparePieces += spare;
+    });
+  });
+  fHtml += '<div class="stock-summary">';
+  fHtml += '<div class="sum-box"><div class="sum-label">完成品合計</div><div class="sum-value">' + totalSetsAll + '</div><div class="stock-unit">セット</div></div>';
+  fHtml += '<div class="sum-box"><div class="sum-label">端数在庫</div><div class="sum-value">' + totalSparePieces + '</div><div class="stock-unit">本・個</div></div>';
+  fHtml += '</div>';
   PRODUCTS.forEach(function(p) {
     var counts = [];
     var total = 0;
@@ -1585,6 +1792,7 @@ function renderStock() {
     });
     fHtml += '<div class="list-item">';
     fHtml += '<div class="main"><div class="name">' + p + '</div>';
+    fHtml += recipeMaterialLine(p);
     fHtml += '<div class="detail">' + counts.join(' / ') + '</div></div>';
     fHtml += '<div><span class="stock-num">' + total + '</span> <span class="stock-unit">セット</span></div>';
     fHtml += '<div style="margin-left:6px;"><button class="sm" onclick="adjustStock(\'' + p + '\')">調整</button></div>';
@@ -1766,6 +1974,38 @@ function confirmPack() {
 function cancelPack() {
   packingTargetId = null;
   document.getElementById('pack-dialog').style.display = 'none';
+}
+
+function loadMakeRecipeView() {
+  var el = document.getElementById('mk-recipe-preview');
+  if (!el) return;
+  var productSel = document.getElementById('mk-product');
+  var product = productSel ? productSel.value : '';
+  var total = parseFloat(document.getElementById('mk-total') ? document.getElementById('mk-total').value : '0') || 0;
+  var recipe = getProductRecipe(product);
+  var materialsList = recipe.materials || [];
+  var grams = recipe.grams || [];
+  if (!grams.length && recipe.ratios && recipe.ratios.length) {
+    var ratioSum = recipe.ratios.reduce(function(sum, n){ return sum + (parseFloat(n) || 0); }, 0);
+    grams = recipe.ratios.map(function(r) {
+      return ratioSum > 0 ? total * (parseFloat(r) || 0) / ratioSum : 0;
+    });
+  }
+  if (!materialsList.length || !grams.length) {
+    el.innerHTML = '<span style="color:var(--muted);">この商品のレシピは未登録です。商品タブで素材と配合量を登録できます。</span>';
+    return;
+  }
+  var baseTotal = grams.reduce(function(sum, n){ return sum + (parseFloat(n) || 0); }, 0);
+  var scale = baseTotal > 0 && total > 0 ? total / baseTotal : 1;
+  var html = '';
+  materialsList.forEach(function(name, i) {
+    var baseGram = parseFloat(grams[i]) || 0;
+    var gram = baseGram * scale;
+    var percent = baseTotal > 0 ? baseGram / baseTotal * 100 : 0;
+    html += '<div style="display:flex;justify-content:space-between;gap:8px;"><span>' + name + '</span><strong>' + gram.toFixed(2).replace(/\\.00$/,'') + 'g / ' + percent.toFixed(1) + '%</strong></div>';
+  });
+  html += '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;color:var(--ok);font-weight:700;">今回合計: ' + total + 'g</div>';
+  el.innerHTML = html;
 }
 
 function cancelMake(id) {
@@ -1973,18 +2213,75 @@ function renderMaterials() {
   el.innerHTML = html;
 }
 
-// ===== 商品マスター管理 =====
-function addProduct() {
-  var name = document.getElementById('prd-name').value.trim();
-  if (!name) { alert('商品名を入力してください'); return; }
-  if (PRODUCTS.indexOf(name) >= 0) { alert(name + ' は既に登録されています'); return; }
-  PRODUCTS.push(name);
-  saveData('products', PRODUCTS);
-  document.getElementById('prd-name').value = '';
-  initProductSelects();
-  renderProducts();
+// ===== 商品素材・レシピ =====
+function loadRecipeForm() {
+  var sel = document.getElementById('rcp-product');
+  if (!sel) return;
+  var product = sel.value || PRODUCTS[0] || '';
+  var recipe = getProductRecipe(product);
+  var total = parseFloat(document.getElementById('rcp-total').value) || 10;
+  var grams = recipe.grams || [];
+  if (!grams.length && recipe.ratios && recipe.ratios.length) {
+    var ratioSum = recipe.ratios.reduce(function(sum, n){ return sum + (parseFloat(n) || 0); }, 0);
+    grams = recipe.ratios.map(function(r) {
+      return ratioSum > 0 ? +(total * (parseFloat(r) || 0) / ratioSum).toFixed(2) : 0;
+    });
+  }
+  document.getElementById('rcp-product-name').value = product;
+  document.getElementById('rcp-materials').value = (recipe.materials || []).join('\n');
+  document.getElementById('rcp-grams').value = grams.join('\n');
+  document.getElementById('rcp-memo').value = recipe.memo || '';
+  updateRecipePreview();
 }
 
+function updateRecipePreview() {
+  var preview = document.getElementById('rcp-preview');
+  if (!preview) return;
+  var materialsInput = document.getElementById('rcp-materials');
+  var gramsInput = document.getElementById('rcp-grams');
+  var totalInput = document.getElementById('rcp-total');
+  var materialsList = splitRecipeLines(materialsInput ? materialsInput.value : '');
+  var grams = parseRecipeAmounts(gramsInput ? gramsInput.value : '');
+  var total = parseFloat(totalInput ? totalInput.value : '0') || 0;
+  if (!materialsList.length) {
+    preview.innerHTML = '<span style="color:var(--muted);">素材とg数を入れると、合計量と配合%をここで確認できます。</span>';
+    return;
+  }
+  var gramSum = grams.reduce(function(sum, n){ return sum + n; }, 0);
+  var html = '';
+  materialsList.forEach(function(name, i) {
+    var gram = grams[i] || 0;
+    var percent = gramSum > 0 ? gram / gramSum * 100 : 0;
+    html += '<div style="display:flex;justify-content:space-between;gap:8px;"><span>' + name + '</span><strong>' + gram.toFixed(2).replace(/\\.00$/,'') + 'g / ' + percent.toFixed(1) + '%</strong></div>';
+  });
+  html += '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;color:' + (total > 0 && Math.abs(gramSum - total) < 0.01 ? 'var(--ok)' : 'var(--warn)') + ';font-weight:700;">合計: ' + gramSum.toFixed(2).replace(/\\.00$/,'') + 'g / 目標 ' + total + 'g</div>';
+  preview.innerHTML = html;
+}
+
+function saveRecipeForm() {
+  var product = document.getElementById('rcp-product-name').value.trim();
+  if (!product) { alert('商品名を入力してください'); return; }
+  var isNew = PRODUCTS.indexOf(product) < 0;
+  if (isNew) {
+    PRODUCTS.push(product);
+    saveData('products', PRODUCTS);
+  }
+  productRecipes[product] = {
+    materials: splitRecipeLines(document.getElementById('rcp-materials').value),
+    grams: parseRecipeAmounts(document.getElementById('rcp-grams').value),
+    memo: document.getElementById('rcp-memo').value.trim()
+  };
+  saveData('productRecipes', productRecipes);
+  initProductSelects();
+  document.getElementById('rcp-product').value = product;
+  document.getElementById('rcp-product-name').value = product;
+  renderProducts();
+  renderStock();
+  renderRegister();
+  alert(isNew ? '商品を追加して素材・レシピを保存しました' : '素材・レシピを保存しました');
+}
+
+// ===== 商品マスター管理 =====
 function editProduct(idx) {
   var oldName = PRODUCTS[idx];
   var newName = prompt('商品名を編集', oldName);
@@ -2009,6 +2306,11 @@ function editProduct(idx) {
   saveData('makeQueue', makeQueue);
   makeLog.forEach(function(l) { if (l.product === oldName) l.product = newName; });
   saveData('makeLog', makeLog);
+  if (productRecipes[oldName]) {
+    productRecipes[newName] = productRecipes[oldName];
+    delete productRecipes[oldName];
+    saveData('productRecipes', productRecipes);
+  }
   PRODUCTS[idx] = newName;
   saveData('products', PRODUCTS);
   initProductSelects();
@@ -2019,8 +2321,10 @@ function deleteProduct(idx) {
   var name = PRODUCTS[idx];
   if (!confirm(name + ' を商品リストから削除しますか？\n（在庫データも削除されます）')) return;
   FORMS.forEach(function(f) { delete stock[stockKey(name, f)]; delete spareStock[stockKey(name, f)]; });
+  delete productRecipes[name];
   saveData('stock', stock);
   saveData('spareStock', spareStock);
+  saveData('productRecipes', productRecipes);
   PRODUCTS.splice(idx, 1);
   saveData('products', PRODUCTS);
   initProductSelects();
@@ -2047,7 +2351,8 @@ function renderProducts() {
     FORMS.forEach(function(f) { total += getStock(p, f); });
     html += '<div class="list-item">';
     html += '<div class="main"><div class="name">' + p + '</div>';
-    html += '<div class="detail">在庫合計: ' + total + '個</div></div>';
+    html += recipeMaterialLine(p);
+    html += '<div class="detail">在庫合計: ' + total + 'セット</div></div>';
     html += '<div class="actions">';
     if (i > 0) html += '<button class="sm" onclick="moveProduct('+i+',-1)" title="上へ">↑</button>';
     if (i < PRODUCTS.length-1) html += '<button class="sm" onclick="moveProduct('+i+',1)" title="下へ">↓</button>';
@@ -2056,10 +2361,84 @@ function renderProducts() {
     html += '</div></div>';
   });
   el.innerHTML = html;
-  renderEcPrices();
-  renderDirectPrices();
-  renderPrices();
-  renderServicePrices();
+  renderPriceOverview();
+}
+
+function priceInput(id, val, placeholder) {
+  return '<input type="number" id="' + id + '" value="' + (val || '') + '" min="0" placeholder="' + (placeholder || 0) + '" style="width:76px;font-size:12px;padding:5px;border:1px solid var(--border);border-radius:4px;text-align:right;">';
+}
+
+function renderPriceRow(label, key, showChannels) {
+  var html = '<tr>';
+  html += '<td style="padding:6px 4px;border-bottom:1px solid #eee;font-weight:500;">' + label + '</td>';
+  html += '<td style="padding:4px;border-bottom:1px solid #eee;text-align:center;">' + priceInput('po-base-' + key, basePrices[key], 0) + '</td>';
+  html += '<td style="padding:4px;border-bottom:1px solid #eee;text-align:center;">' + priceInput('po-cost-' + key, productCosts[key], 0) + '</td>';
+  if (showChannels) {
+    html += '<td style="padding:4px;border-bottom:1px solid #eee;text-align:center;">' + priceInput('po-direct-' + key, directPrices[key], basePrices[key] || 0) + '</td>';
+    html += '<td style="padding:4px;border-bottom:1px solid #eee;text-align:center;">' + priceInput('po-ec-' + key, ecPrices[key], basePrices[key] || 0) + '</td>';
+  } else {
+    html += '<td style="padding:4px;border-bottom:1px solid #eee;text-align:center;color:var(--muted);font-size:11px;">-</td>';
+    html += '<td style="padding:4px;border-bottom:1px solid #eee;text-align:center;color:var(--muted);font-size:11px;">-</td>';
+  }
+  html += '</tr>';
+  return html;
+}
+
+function renderPriceOverview() {
+  var el = document.getElementById('price-overview');
+  if (!el) return;
+  var html = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html += '<tr><th style="text-align:left;padding:4px;color:var(--muted);">項目</th><th style="padding:4px;color:var(--muted);">通常</th><th style="padding:4px;color:var(--muted);">原価</th><th style="padding:4px;color:var(--muted);">直販</th><th style="padding:4px;color:var(--muted);">EC</th></tr>';
+  PRODUCTS.forEach(function(p) {
+    FORMS.forEach(function(f) {
+      html += renderPriceRow(p + ' / ' + f, p + '_' + f, true);
+    });
+  });
+  html += renderPriceRow(SELECTABLE_SET_NAME, SELECTABLE_SET_NAME + '_セット', true);
+  html += renderPriceRow('お香立て', 'お香立て_単品', true);
+  SERVICES.forEach(function(svc) {
+    html += renderPriceRow(svc, svc + '_サービス', false);
+  });
+  html += '</table></div>';
+  el.innerHTML = html;
+}
+
+function readPriceInput(id) {
+  var inp = document.getElementById(id);
+  if (!inp || inp.value === '') return null;
+  return parseInt(inp.value) || 0;
+}
+
+function savePriceMapValue(map, key, val) {
+  if (val === null || val <= 0) delete map[key];
+  else map[key] = val;
+}
+
+function savePriceOverview() {
+  var keys = [];
+  PRODUCTS.forEach(function(p) {
+    FORMS.forEach(function(f) { keys.push(p + '_' + f); });
+  });
+  keys.push(SELECTABLE_SET_NAME + '_セット');
+  keys.push('お香立て_単品');
+  SERVICES.forEach(function(svc) { keys.push(svc + '_サービス'); });
+  keys.forEach(function(key) {
+    savePriceMapValue(basePrices, key, readPriceInput('po-base-' + key));
+    savePriceMapValue(productCosts, key, readPriceInput('po-cost-' + key));
+    if (key.indexOf('_サービス') < 0) {
+      savePriceMapValue(directPrices, key, readPriceInput('po-direct-' + key));
+      savePriceMapValue(ecPrices, key, readPriceInput('po-ec-' + key));
+    }
+  });
+  saveData('basePrices', basePrices);
+  saveData('productCosts', productCosts);
+  saveData('directPrices', directPrices);
+  saveData('ecPrices', ecPrices);
+  renderRegister();
+  renderPriceOverview();
+  var msg = document.getElementById('price-overview-saved-msg');
+  msg.style.display = '';
+  setTimeout(function(){ msg.style.display = 'none'; }, 2000);
 }
 
 function renderCategoryPrices(elId, priceData, prefix) {
@@ -2542,9 +2921,10 @@ function renderLogoPreview() {
 function exportAllData() {
   var data = {
     products: PRODUCTS, stock: stock, spareStock: spareStock,
+    productRecipes: productRecipes,
     basePrices: basePrices, ecPrices: ecPrices, directPrices: directPrices,
     sales: sales, events: events, makeQueue: makeQueue, makeLog: makeLog,
-    materials: materials, holderStock: holderStock,
+    materials: materials, holderStock: holderStock, productCosts: productCosts,
     receiptCounter: receiptCounter, receiptLogo: receiptLogo,
     exportDate: new Date().toISOString()
   };
@@ -2564,11 +2944,13 @@ function importAllData(event) {
       var data = JSON.parse(e.target.result);
       if (!confirm('現在のデータを上書きしてインポートしますか？')) return;
       if (data.products) { PRODUCTS = data.products; saveData('products', PRODUCTS); }
+      if (data.productRecipes) { productRecipes = data.productRecipes; saveData('productRecipes', productRecipes); }
       if (data.stock) { stock = data.stock; saveData('stock', stock); }
       if (data.spareStock) { spareStock = data.spareStock; saveData('spareStock', spareStock); }
       if (data.basePrices) { basePrices = data.basePrices; saveData('basePrices', basePrices); }
       if (data.ecPrices) { ecPrices = data.ecPrices; saveData('ecPrices', ecPrices); }
       if (data.directPrices) { directPrices = data.directPrices; saveData('directPrices', directPrices); }
+      if (data.productCosts) { productCosts = data.productCosts; saveData('productCosts', productCosts); }
       if (data.sales) { sales = data.sales; saveData('sales', sales); }
       if (data.events) { events = data.events; saveData('events', events); }
       if (data.makeQueue) { makeQueue = data.makeQueue; saveData('makeQueue', makeQueue); }
@@ -2590,13 +2972,15 @@ function resetAllData() {
   if (!confirm('全てのデータをリセットしますか？この操作は元に戻せません。')) return;
   if (!confirm('本当にリセットしますか？')) return;
   PRODUCTS = DEFAULT_PRODUCTS.slice();
-  stock = {}; spareStock = {}; basePrices = {}; ecPrices = {}; directPrices = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = []; holderStock = 0;
+  stock = {}; spareStock = {}; productRecipes = {}; basePrices = {}; ecPrices = {}; directPrices = {}; productCosts = {}; sales = []; events = []; makeQueue = []; makeLog = []; materials = []; holderStock = 0;
   saveData('products', PRODUCTS);
   saveData('stock', stock);
   saveData('spareStock', spareStock);
+  saveData('productRecipes', productRecipes);
   saveData('basePrices', basePrices);
   saveData('ecPrices', ecPrices);
   saveData('directPrices', directPrices);
+  saveData('productCosts', productCosts);
   saveData('sales', sales);
   saveData('events', events);
   saveData('makeQueue', makeQueue);
@@ -2613,9 +2997,7 @@ initProductSelects();
 onChannelChange();
 updateRegContextSelect();
 renderRegister();
-renderSales();
-renderStock();
-renderMaterials();
+toggleReceivedField();
 renderLogoPreview();
 // レポート月を今月に設定
 var _now = new Date();
